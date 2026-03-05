@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Fallback CSS Variable Definitions.
+ * These values are the last line of defense before the ThemeEngine
+ * injects the resolved tenant payload. They must always be valid
+ * to prevent a Flash of Unstyled Content (FOUC) on initial hydration.
+ */
+:root {
+  --color-primary:            #1a1a2e;
+  --color-primary-hover:      #16213e;
+  --color-surface:            #ffffff;
+  --color-surface-elevated:   #f8f9fa;
+  --color-background:         #f1f3f5;
+  --color-border:             #dee2e6;
+  --color-border-focus:       #1a1a2e;
+  --color-text-primary:       #212529;
+  --color-text-muted:         #6c757d;
+}
+
+/*
+ * Dark mode overrides applied when the `.dark` class is hoisted
+ * onto the document root by the Dynamic Theme Engine.
+ * These values define the dark-mode chromatic axis, not the tenant identity.
+ */
+.dark {
+  --color-primary:            #a5b4fc;
+  --color-primary-hover:      #818cf8;
+  --color-surface:            #1e1e2e;
+  --color-surface-elevated:   #2a2a3e;
+  --color-background:         #0f0f1a;
+  --color-border:             #3b3b52;
+  --color-border-focus:       #a5b4fc;
+  --color-text-primary:       #e2e8f0;
+  --color-text-muted:         #94a3b8;
+}
+
+/* Global physical background and text color enforcing the Enterprise Dark/Light Mode */
+@layer base {
+  body {
+    @apply bg-[var(--color-background)] text-[var(--color-text-primary)] antialiased selection:bg-slate-300 dark:selection:bg-slate-700;
+  }
+}
