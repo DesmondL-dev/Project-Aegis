@@ -71,6 +71,7 @@ export const AmlDataGrid = ({ onRowClick }: AmlDataGridProps) => {
     []
   );
 
+  /* throw new Error("Simulated DOM Crash"); */
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
       {/* Grid header */}
