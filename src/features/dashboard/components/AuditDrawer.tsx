@@ -84,6 +84,28 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId }: AuditDrawerProps
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // History API Hijacking — intercept iOS Safari edge-swipe-to-go-back so the
+  // gesture closes the drawer instead of navigating out of the app. When the
+  // drawer opens we push a synthetic history entry; the popstate listener
+  // invokes onClose() so the drawer dismisses and the user stays in-app.
+  // Strict unmount cleanup removes the listener to avoid memory leaks and
+  // ghost callbacks after the component tree is deallocated.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    window.history.pushState({ drawer: 'audit' }, '');
+
+    const handlePopState = () => {
+      onClose();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isOpen, onClose]);
+
   // Reset form state on drawer close to prevent stale payload persistence
   // across separate transaction selections.
   useEffect(() => {
@@ -156,12 +178,14 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId }: AuditDrawerProps
             >
               Analyst Notes
             </label>
+            {/* Safari iOS Zoom Prevent: font-size must be >= 16px on mobile or Safari
+                auto-zooms the viewport on focus. text-[16px] on small viewports, md:text-sm above. */}
             <textarea
               id="audit-notes"
               {...register('notes')}
               rows={8}
               placeholder="Document the rationale for this transaction review. All input is HTML-sanitized before persistence."
-              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-border-focus transition-colors"
+              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[16px] md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-border-focus transition-colors"
             />
             {errors.notes && (
               <p className="text-xs text-red-500">{errors.notes.message}</p>
