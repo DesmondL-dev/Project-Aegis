@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 
@@ -7,7 +8,16 @@ export default defineConfig({
   server: {
     // Network configuration to allow cross-device hydration testing (e.g., mobile viewports)
     host: true, // Expose dev server to local network for physical device debugging
-    port: 3000, 
+    port: 3000,
     strictPort: true, // Fail-fast mechanism if port is occupied, preventing silent unpredictable port assignment
+  },
+  test: {
+    // jsdom simulates a browser DOM environment for hook and component test suites
+    // without requiring a real browser process — enabling fast, headless CI execution.
+    environment: 'jsdom',
+    // Inject Vitest globals (describe, it, expect, vi, beforeEach, afterEach)
+    // into every test file without explicit imports — mirrors Jest's API surface
+    // to reduce test boilerplate overhead.
+    globals: true,
   },
 })
