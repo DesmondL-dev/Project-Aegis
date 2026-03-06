@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { AlertTriangle, Users, DollarSign, ShieldAlert } from 'lucide-react';
+import { AegisErrorBoundary } from '../../../components/ui/AegisErrorBoundary';
 import { AmlDataGrid } from './AmlDataGrid';
 import { AuditDrawer } from './AuditDrawer';
 
@@ -91,16 +92,21 @@ export const DashboardView = () => {
         ))}
       </div>
 
-      {/* AML Data Grid — virtualized KYC transaction surface */}
-      <AmlDataGrid onRowClick={handleRowClick} />
+      {/* AML Data Grid — isolated in its own error boundary. A Grid crash
+          does not cascade to the Drawer or KPI layer (Render Tree Isolation). */}
+      <AegisErrorBoundary>
+        <AmlDataGrid onRowClick={handleRowClick} />
+      </AegisErrorBoundary>
 
-      {/* AuditDrawer — mounted at this boundary to keep drawer state scoped
-          to the dashboard feature module, not the root layout. */}
-      <AuditDrawer
-        isOpen={isDrawerOpen}
-        onClose={handleDrawerClose}
-        transactionId={selectedTxId}
-      />
+      {/* AuditDrawer — isolated in a separate boundary. A Drawer crash
+          does not cascade to the Grid or KPI layer (Render Tree Isolation). */}
+      <AegisErrorBoundary>
+        <AuditDrawer
+          isOpen={isDrawerOpen}
+          onClose={handleDrawerClose}
+          transactionId={selectedTxId}
+        />
+      </AegisErrorBoundary>
     </div>
   );
 };
