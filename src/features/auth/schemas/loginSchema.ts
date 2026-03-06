@@ -10,11 +10,18 @@ export const loginSchema = z.object({
     .string()
     .min(1, { message: 'Email payload is required.' })
     .max(100, { message: 'Email payload exceeds maximum length of 100 characters.' })
-    .email({ message: 'Invalid email address structure.' })
-    // Normalize before injection scan — trim and lowercase first to eliminate
-    // obfuscation vectors that exploit whitespace or mixed casing.
+    // Normalization MUST precede format validation — .trim() and .toLowerCase()
+    // are applied in pipeline order. Placing them after .email() causes Zod to
+    // validate the raw, un-normalized input first. A payload like
+    // '  USER@DOMAIN.COM  ' would fail .email() due to the leading/trailing
+    // whitespace before the transform ever executes, producing a false negative.
     .trim()
     .toLowerCase()
+    .email({ message: 'Invalid email address structure.' })
+    // Injection scan executes on the already-normalized value to eliminate
+    // obfuscation vectors that exploit mixed casing (e.g., '<Script>') — the
+    // INJECTION_BLOCKLIST uses /i flag as a secondary defense, but operating
+    // on a pre-lowercased string guarantees deterministic match behavior.
     .refine(
       (val) => !INJECTION_BLOCKLIST.test(val),
       { message: 'Email payload contains disallowed character sequences.' }
