@@ -35,8 +35,7 @@ export const loginSchema = z.object({
       message: 'Password must contain at least one special character.',
     }),
 
-  // Role-Based Access Control — claims slot for JWT payload simulation.
-  // Optional at submit; server (or mock) may derive from identity.
+  // RBAC claims slot — ADMIN | ANALYST; optional at submit; server (or mock) derives from identity.
   role: z.enum(['ADMIN', 'ANALYST']).optional(),
 });
 

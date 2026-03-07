@@ -241,6 +241,7 @@ export const DashboardView = () => {
         isOpen={isDrawerOpen}
         onClose={handleDrawerClose}
         transactionId={selectedTxId}
+        sinNumber={selectedTxId ? filteredRecords.find((r) => r.id === selectedTxId)?.sinNumber ?? null : null}
       />
     </div>
   );

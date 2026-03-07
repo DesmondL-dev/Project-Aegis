@@ -1,7 +1,10 @@
-import { useRef, useMemo, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Eye, EyeOff } from 'lucide-react';
+import { useAuthStore } from '../../auth/store/useAuthStore';
 import { useDataRedaction } from '../hooks/useDataRedaction';
+import { maskAccount, maskSin } from '../utils/dataRedaction';
+import { RequireRole } from '../../auth/components/RequireRole';
 
 type RecordStatus = 'FLAGGED' | 'REVIEW' | 'CLEAR';
 
@@ -113,6 +116,7 @@ const useIsTabletOrLarger = (): boolean => {
 // DOM node back to its virtual item and recalculates getTotalSize() with actual heights.
 // This eliminates layout clipping when a fixed estimate is smaller than the card's content.
 export const AmlDataGrid = ({ onRowClick, records: recordsProp }: AmlDataGridProps) => {
+  const role = useAuthStore((state) => state.user?.role);
   const { isRedacted, revealData } = useDataRedaction();
   const isTabletOrLarger           = useIsTabletOrLarger();
   const scrollContainerRef         = useRef<HTMLDivElement>(null);
@@ -125,12 +129,6 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp }: AmlDataGridPro
     overscan:         5,
   });
 
-  // SIN masking strategy: expose only the last 4 digits (OWASP A02).
-  const maskSin = useMemo(
-    () => (sin: string) => `***-***-${sin.slice(-4)}`,
-    []
-  );
-
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
       {/* Grid header */}
@@ -138,17 +136,19 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp }: AmlDataGridPro
         <h3 className="text-sm font-semibold text-text-primary">KYC Transaction Records</h3>
         <div className="flex items-center gap-2">
           <span className="text-xs text-text-muted">{dataSource.length.toLocaleString()} records</span>
-          <button
-            onClick={revealData}
-            title={isRedacted ? 'Reveal sensitive data (30s window)' : 'Data exposed — auto-redaction active'}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border text-text-muted hover:text-text-primary hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus"
-          >
-            {isRedacted ? (
-              <><Eye className="w-3.5 h-3.5" /> Reveal SIN</>
-            ) : (
-              <><EyeOff className="w-3.5 h-3.5" /> Auto-redacting</>
-            )}
-          </button>
+          <RequireRole allowedRoles={['ADMIN']}>
+            <button
+              onClick={revealData}
+              title={isRedacted ? 'Reveal sensitive data (30s window)' : 'Data exposed — auto-redaction active'}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border text-text-muted hover:text-text-primary hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus"
+            >
+              {isRedacted ? (
+                <><Eye className="w-3.5 h-3.5" /> Reveal SIN</>
+              ) : (
+                <><EyeOff className="w-3.5 h-3.5" /> Auto-redacting</>
+              )}
+            </button>
+          </RequireRole>
         </div>
       </div>
 
@@ -201,13 +201,13 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp }: AmlDataGridPro
               >
                 {/* ── Desktop (md+): high-density tabular row ── */}
                 <div className="hidden md:grid md:grid-cols-[1fr_2fr_1.5fr_1fr_1fr_1fr] gap-3 items-center px-4 py-3 text-sm border-b border-border hover:bg-surface-elevated">
-                  <span className="font-mono text-xs text-text-muted">{record.id}</span>
+                  <span className="font-mono text-xs text-text-muted">{maskAccount(record.id, role)}</span>
                   <div className="flex flex-col min-w-0">
                     <span className="text-text-primary truncate text-xs font-medium">{record.customerName}</span>
                     <span className="text-text-muted truncate text-xs">{record.email}</span>
                   </div>
                   <span className="font-mono text-xs text-text-muted">
-                    {isRedacted ? maskSin(record.sinNumber) : record.sinNumber}
+                    {maskSin(record.sinNumber, role ?? 'ANALYST', !isRedacted)}
                   </span>
                   <span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_BADGE[record.status]}`}>
@@ -243,12 +243,12 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp }: AmlDataGridPro
                   <div className="flex flex-col gap-3">
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Record ID</span>
-                      <span className="font-mono text-xs text-text-primary">{record.id}</span>
+                      <span className="font-mono text-xs text-text-primary">{maskAccount(record.id, role)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-medium text-text-muted uppercase tracking-wide">SIN</span>
                       <span className="font-mono text-xs text-text-muted">
-                        {isRedacted ? maskSin(record.sinNumber) : record.sinNumber}
+                        {maskSin(record.sinNumber, role ?? 'ANALYST', !isRedacted)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">

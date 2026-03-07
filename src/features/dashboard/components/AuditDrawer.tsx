@@ -1,14 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, FileText, CheckCircle, Lock, RotateCcw } from 'lucide-react';
+import { X, FileText, CheckCircle, Lock, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { RequireRole } from '../../auth/components/RequireRole';
+import { useAuthStore } from '../../auth/store/useAuthStore';
 import { auditSchema, type AuditPayload } from '../schemas/auditSchema';
+import { maskAccount, maskSin } from '../utils/dataRedaction';
 
 interface AuditDrawerProps {
   isOpen:          boolean;
   onClose:         () => void;
   transactionId:   string | null;
+  sinNumber?:      string | null;
 }
 
 // Focusable selector — all interactive elements that participate in the
@@ -24,7 +27,9 @@ const FOCUS_TRAP_SELECTOR =
 //
 // aria-live="polite": The status region announces form submission outcomes
 // without interrupting the current screen reader narration context.
-export const AuditDrawer = ({ isOpen, onClose, transactionId }: AuditDrawerProps) => {
+export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: AuditDrawerProps) => {
+  const role = useAuthStore((state) => state.user?.role);
+  const [isRevealed, setIsRevealed] = useState(false);
   const drawerRef         = useRef<HTMLDivElement>(null);
   const firstFocusRef     = useRef<HTMLButtonElement>(null);
   const previousFocusRef  = useRef<HTMLElement | null>(null);
@@ -127,11 +132,12 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId }: AuditDrawerProps
     };
   }, [isOpen, onClose]);
 
-  // Reset form state on drawer close to prevent stale payload persistence
+  // Reset form state and reveal state on drawer close to prevent stale payload persistence
   // across separate transaction selections.
   useEffect(() => {
     if (!isOpen) {
       reset();
+      setIsRevealed(false);
     }
   }, [isOpen, reset]);
 
@@ -179,12 +185,41 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId }: AuditDrawerProps
           </button>
         </div>
 
-        {/* Transaction context */}
-        <div className="px-5 py-3 border-b border-border bg-background">
-          <p className="text-xs text-text-muted">Transaction ID</p>
-          <p className="mt-0.5 text-sm font-mono font-medium text-text-primary">
-            {transactionId ?? '—'}
-          </p>
+        {/* Transaction context — RBAC masking: ANALYST sees last-four only. */}
+        <div className="px-5 py-3 border-b border-border bg-background space-y-3">
+          <div>
+            <p className="text-xs text-text-muted">Transaction ID</p>
+            <p className="mt-0.5 text-sm font-mono font-medium text-text-primary">
+              {transactionId == null ? '—' : maskAccount(transactionId, role)}
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-xs text-text-muted">SIN</p>
+              <p className="mt-0.5 text-sm font-mono font-medium text-text-primary">
+                {sinNumber != null
+                  ? maskSin(sinNumber, role ?? 'ANALYST', isRevealed)
+                  : '—'}
+              </p>
+            </div>
+            {sinNumber != null && (
+              <RequireRole allowedRoles={['ADMIN']}>
+                <button
+                  type="button"
+                  onClick={() => setIsRevealed((prev) => !prev)}
+                  title={isRevealed ? 'Mask SIN' : 'Reveal SIN'}
+                  aria-label={isRevealed ? 'Mask SIN' : 'Reveal SIN'}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border text-text-muted hover:text-text-primary hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus"
+                >
+                  {isRevealed ? (
+                    <><EyeOff className="w-3.5 h-3.5" /> Mask SIN</>
+                  ) : (
+                    <><Eye className="w-3.5 h-3.5" /> Reveal SIN</>
+                  )}
+                </button>
+              </RequireRole>
+            )}
+          </div>
         </div>
 
         {/* Audit form */}
