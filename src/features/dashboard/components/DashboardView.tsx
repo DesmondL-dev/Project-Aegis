@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { AlertTriangle, Users, DollarSign, ShieldAlert, AlertCircle, RefreshCw, Settings, Download } from 'lucide-react';
+import { ErrorBoundary } from '../../../core/errors/ErrorBoundary';
 import { RequireRole } from '../../auth/components/RequireRole';
 import { AmlDataGrid, type KycRecord } from './AmlDataGrid';
 import { AmlDataGridSkeleton } from './AmlDataGridSkeleton';
@@ -218,24 +219,28 @@ export const DashboardView = () => {
         </div>
       </RequireRole>
 
-      {/* KPI Row — interactive filter toggles; active card drives grid data slice; AODA-compliant focus trap context */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" role="group" aria-label="Dashboard filter toggles">
-        {KPI_DATASET.map((kpi) => (
-          <KpiCard
-            key={kpi.label}
-            {...kpi}
-            isActive={activeFilter === kpi.filterKey}
-            onToggle={handleFilterToggle}
-          />
-        ))}
-      </div>
+      {/* KPI Row — isolated blast radius; failure in one boundary does not unmount the other. */}
+      <ErrorBoundary>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" role="group" aria-label="Dashboard filter toggles">
+          {KPI_DATASET.map((kpi) => (
+            <KpiCard
+              key={kpi.label}
+              {...kpi}
+              isActive={activeFilter === kpi.filterKey}
+              onToggle={handleFilterToggle}
+            />
+          ))}
+        </div>
+      </ErrorBoundary>
 
-      {/* AML Data Grid — async payload; loading skeleton, error fallback, or filtered grid */}
-      {isLoading && <AmlDataGridSkeleton />}
-      {isError && <AmlDataErrorFallback onRetry={handleRetry} />}
-      {!isLoading && !isError && (
-        <AmlDataGrid onRowClick={handleRowClick} records={filteredRecords} />
-      )}
+      {/* AML Data Grid — async payload; loading skeleton, error fallback, or filtered grid; contained failure surface. */}
+      <ErrorBoundary>
+        {isLoading && <AmlDataGridSkeleton />}
+        {isError && <AmlDataErrorFallback onRetry={handleRetry} />}
+        {!isLoading && !isError && (
+          <AmlDataGrid onRowClick={handleRowClick} records={filteredRecords} />
+        )}
+      </ErrorBoundary>
 
       <AuditDrawer
         isOpen={isDrawerOpen}

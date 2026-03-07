@@ -129,6 +129,7 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp }: AmlDataGridPro
     overscan:         5,
   });
 
+  
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
       {/* Grid header */}
