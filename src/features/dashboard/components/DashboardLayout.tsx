@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardView } from './DashboardView';
 import { LogOut, Shield } from 'lucide-react';
 import { useAuthStore } from '../../auth/store/useAuthStore';
+import { SessionTimeoutModal } from '../../auth/components/SessionTimeoutModal';
+import { useIdleTimeout } from '../hooks/useIdleTimeout';
 
 // Protected zone shell — rendered exclusively after the ProtectedRoute
 // perimeter has validated the authentication predicate.
@@ -15,6 +18,12 @@ export const DashboardLayout = () => {
   const user             = useAuthStore((state) => state.user);
   const teardownSession  = useAuthStore((state) => state.teardownSession);
   const navigate = useNavigate();
+  const { isIdle, resetIdleTimer } = useIdleTimeout();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (isIdle) setIsModalOpen(true);
+  }, [isIdle]);
 
   // Session teardown pipeline: wipe in-memory state machine first,
   // then redirect — guarantees no stale auth payload persists during
@@ -22,6 +31,11 @@ export const DashboardLayout = () => {
   const handleLogout = () => {
     teardownSession();
     navigate('/login', { replace: true });
+  };
+
+  const handleStayLoggedIn = () => {
+    setIsModalOpen(false);
+    resetIdleTimer();
   };
 
   return (
@@ -58,6 +72,12 @@ export const DashboardLayout = () => {
       <main className="p-6">
         <DashboardView />
       </main>
+
+      <SessionTimeoutModal
+        isOpen={isModalOpen}
+        onStayLoggedIn={handleStayLoggedIn}
+        onLogout={handleLogout}
+      />
     </div>
   );
 };
