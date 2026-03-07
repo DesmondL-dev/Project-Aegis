@@ -17,32 +17,50 @@ interface KpiCardProps {
   onToggle: (key: ActiveFilter) => void;
 }
 
-// KPI Card — interactive toggle; event delegation via onToggle.
-// Active state: sharp ring + border for selected filter; click again resets to ALL.
-const KpiCard = ({ label, value, delta, positive, icon, filterKey, isActive, onToggle }: KpiCardProps) => (
-  <button
-    type="button"
-    onClick={() => onToggle(filterKey)}
-    className={`flex flex-col gap-3 p-4 rounded-xl border bg-surface hover:bg-surface-elevated transition-all text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${
-      isActive
-        ? 'border-cyan-500 ring-2 ring-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
-        : 'border-border'
-    }`}
-  >
-    <div className="flex items-center justify-between">
-      <span className="text-xs font-medium text-text-muted uppercase tracking-wide">{label}</span>
-      <div className="p-1.5 rounded-lg bg-background text-text-muted">
-        {icon}
+// AODA / WCAG 2.1 AA: toggle control as button role; aria-pressed for toggle state; keyboard activation via Enter/Space.
+const getFilterAriaLabel = (label: string, _filterKey: ActiveFilter, isActive: boolean): string => {
+  const action = isActive ? 'Clear filter and show all' : `Filter by ${label}`;
+  return `${label}. ${action}. ${isActive ? 'Selected' : 'Not selected'}.`;
+};
+
+const KpiCard = ({ label, value, delta, positive, icon, filterKey, isActive, onToggle }: KpiCardProps) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onToggle(filterKey);
+    }
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={isActive}
+      aria-label={getFilterAriaLabel(label, filterKey, isActive)}
+      onClick={() => onToggle(filterKey)}
+      onKeyDown={handleKeyDown}
+      className={`flex flex-col gap-3 p-4 rounded-xl border bg-surface hover:bg-surface-elevated transition-all text-left cursor-pointer
+        focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-900
+        ${isActive
+          ? 'border-cyan-500 ring-2 ring-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
+          : 'border-border'
+        }`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-text-muted uppercase tracking-wide">{label}</span>
+        <div className="p-1.5 rounded-lg bg-background text-text-muted">
+          {icon}
+        </div>
+      </div>
+      <div>
+        <p className="text-2xl font-bold text-text-primary tabular-nums">{value}</p>
+        <p className={`mt-1 text-xs font-medium ${positive ? 'text-green-500' : 'text-red-500'}`}>
+          {delta}
+        </p>
       </div>
     </div>
-    <div>
-      <p className="text-2xl font-bold text-text-primary tabular-nums">{value}</p>
-      <p className={`mt-1 text-xs font-medium ${positive ? 'text-green-500' : 'text-red-500'}`}>
-        {delta}
-      </p>
-    </div>
-  </button>
-);
+  );
+};
 
 const KPI_DATASET: Omit<KpiCardProps, 'isActive' | 'onToggle'>[] = [
   {
@@ -125,8 +143,8 @@ export const DashboardView = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* KPI Row — interactive filter toggles; active card drives grid data slice */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* KPI Row — interactive filter toggles; active card drives grid data slice; AODA-compliant focus trap context */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" role="group" aria-label="Dashboard filter toggles">
         {KPI_DATASET.map((kpi) => (
           <KpiCard
             key={kpi.label}
