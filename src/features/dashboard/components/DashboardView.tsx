@@ -1,7 +1,9 @@
 import { useState, useCallback, useMemo } from 'react';
-import { AlertTriangle, Users, DollarSign, ShieldAlert } from 'lucide-react';
-import { AmlDataGrid, generateKycRecords, type KycRecord } from './AmlDataGrid';
+import { AlertTriangle, Users, DollarSign, ShieldAlert, AlertCircle, RefreshCw } from 'lucide-react';
+import { AmlDataGrid, type KycRecord } from './AmlDataGrid';
+import { AmlDataGridSkeleton } from './AmlDataGridSkeleton';
 import { AuditDrawer } from './AuditDrawer';
+import { useAmlData } from '../hooks/useAmlData';
 
 // Master filter state — drives both KPI card active styling and grid data slice (master-detail linking).
 export type ActiveFilter = 'ALL' | 'HIGH_RISK' | 'KYC' | 'FLAGGED' | 'ALERTS';
@@ -132,6 +134,27 @@ const filterRecords = (records: KycRecord[], activeFilter: ActiveFilter): KycRec
   }
 };
 
+// Critical state fallback — query failure surface with retry CTA for query invalidation.
+const AmlDataErrorFallback = ({ onRetry }: { onRetry: () => void }) => (
+  <div
+    className="rounded-xl border border-red-500/30 bg-slate-900/90 p-8 flex flex-col items-center justify-center gap-4 min-h-[320px]"
+    role="alert"
+  >
+    <AlertCircle className="w-12 h-12 text-red-500" aria-hidden />
+    <p className="text-red-400 font-medium text-center">
+      Failed to load AML data. Check connection and try again.
+    </p>
+    <button
+      type="button"
+      onClick={onRetry}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-900 transition-colors"
+    >
+      <RefreshCw className="w-4 h-4" />
+      Retry
+    </button>
+  </div>
+);
+
 // Primary protected view — owns AuditDrawer state machine and global filter state.
 // Filter selection intercepts raw data and passes only the filtered slice to AmlDataGrid.
 export const DashboardView = () => {
@@ -139,7 +162,8 @@ export const DashboardView = () => {
   const [selectedTxId,   setSelectedTxId]   = useState<string | null>(null);
   const [activeFilter,   setActiveFilter]   = useState<ActiveFilter>('ALL');
 
-  const rawRecords = useMemo(() => generateKycRecords(), []);
+  const { data, isLoading, isError, refetch } = useAmlData();
+  const rawRecords = useMemo(() => data ?? [], [data]);
   const filteredRecords = useMemo(
     () => filterRecords(rawRecords, activeFilter),
     [rawRecords, activeFilter]
@@ -158,6 +182,10 @@ export const DashboardView = () => {
     setIsDrawerOpen(false);
     setTimeout(() => setSelectedTxId(null), 300);
   }, []);
+
+  const handleRetry = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -181,8 +209,12 @@ export const DashboardView = () => {
         ))}
       </div>
 
-      {/* AML Data Grid — receives filtered payload; virtualizer reacts to length change */}
-      <AmlDataGrid onRowClick={handleRowClick} records={filteredRecords} />
+      {/* AML Data Grid — async payload; loading skeleton, error fallback, or filtered grid */}
+      {isLoading && <AmlDataGridSkeleton />}
+      {isError && <AmlDataErrorFallback onRetry={handleRetry} />}
+      {!isLoading && !isError && (
+        <AmlDataGrid onRowClick={handleRowClick} records={filteredRecords} />
+      )}
 
       <AuditDrawer
         isOpen={isDrawerOpen}
