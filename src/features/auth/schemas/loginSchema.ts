@@ -34,6 +34,10 @@ export const loginSchema = z.object({
     .refine((val) => /[^A-Za-z0-9]/.test(val), {
       message: 'Password must contain at least one special character.',
     }),
+
+  // Role-Based Access Control — claims slot for JWT payload simulation.
+  // Optional at submit; server (or mock) may derive from identity.
+  role: z.enum(['ADMIN', 'ANALYST']).optional(),
 });
 
 // Inferred from the runtime Zod schema to guarantee compile-time and

@@ -18,30 +18,16 @@ export const LoginForm = () => {
     mode: 'onBlur', // Trigger validation early to prevent unnecessary submit cycles
   });
 
-  // Hydrate global state machine dispatcher
-  const setAuthPayload = useAuthStore((state) => state.setAuthPayload);
-  
-  // Initialize router navigation dispatcher
+  const performMockLogin = useAuthStore((state) => state.performMockLogin);
+
   const navigate = useNavigate();
 
   // Mock authentication dispatcher (To be replaced with actual API call)
   const onSubmit = async (payload: LoginPayload) => {
-    // Simulate network latency for UX predictability
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    // Construct a mock User payload strictly adhering to the AuthState contract
-    const mockUser = {
-      id: 'usr_mock_001',
-      email: payload.email,
-      role: 'RISK_MANAGER' as const, // Forcing literal type to satisfy the union requirement
-    };
 
-    // Inject mock JWT token and User into the secure state machine
-    console.warn('Mock Auth Execution: Hydrating global state with payload.', { token: 'mock_jwt_token_aegis_x19', user: mockUser });
-    setAuthPayload('mock_jwt_token_aegis_x19', mockUser);
+    performMockLogin(payload.email);
 
-    // Trigger physical route redirection to the protected dashboard
-    // Using 'replace: true' prevents the user from hitting the browser back button to return to the login screen
     navigate('/', { replace: true });
   };
 

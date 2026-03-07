@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
-import { AlertTriangle, Users, DollarSign, ShieldAlert, AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Users, DollarSign, ShieldAlert, AlertCircle, RefreshCw, Settings, Download } from 'lucide-react';
+import { RequireRole } from '../../auth/components/RequireRole';
 import { AmlDataGrid, type KycRecord } from './AmlDataGrid';
 import { AmlDataGridSkeleton } from './AmlDataGridSkeleton';
 import { AuditDrawer } from './AuditDrawer';
@@ -197,6 +198,26 @@ export const DashboardView = () => {
       >
         {getLiveAnnouncement(activeFilter)}
       </div>
+      {/* Admin-only actions — RBAC: ANALYST cannot see or interact; DOM cloaking via RequireRole. */}
+      <RequireRole allowedRoles={['ADMIN']}>
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Administrator actions">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-border text-text-primary hover:bg-surface-elevated transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus"
+          >
+            <Settings className="w-4 h-4" />
+            System Settings
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-border text-text-primary hover:bg-surface-elevated transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus"
+          >
+            <Download className="w-4 h-4" />
+            Export Data
+          </button>
+        </div>
+      </RequireRole>
+
       {/* KPI Row — interactive filter toggles; active card drives grid data slice; AODA-compliant focus trap context */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" role="group" aria-label="Dashboard filter toggles">
         {KPI_DATASET.map((kpi) => (

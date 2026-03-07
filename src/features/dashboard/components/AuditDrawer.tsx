@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, FileText, CheckCircle } from 'lucide-react';
+import { X, FileText, CheckCircle, Lock, RotateCcw } from 'lucide-react';
+import { RequireRole } from '../../auth/components/RequireRole';
 import { auditSchema, type AuditPayload } from '../schemas/auditSchema';
 
 interface AuditDrawerProps {
@@ -223,6 +224,26 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId }: AuditDrawerProps
               </div>
             )}
           </div>
+
+          {/* High-privilege actions — RBAC: ANALYST cannot see or interact; DOM cloaking via RequireRole. */}
+          <RequireRole allowedRoles={['ADMIN']}>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Administrator account actions">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+              >
+                <Lock className="w-4 h-4" />
+                Freeze Account
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Initiate Recovery
+              </button>
+            </div>
+          </RequireRole>
 
           <div className="mt-auto flex gap-3">
             <button
