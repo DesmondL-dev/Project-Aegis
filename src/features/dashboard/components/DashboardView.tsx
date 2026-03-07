@@ -97,6 +97,24 @@ const KPI_DATASET: Omit<KpiCardProps, 'isActive' | 'onToggle'>[] = [
   },
 ];
 
+// ARIA Live Region: human-readable filter state for screen reader state mutation feedback.
+const getLiveAnnouncement = (activeFilter: ActiveFilter): string => {
+  const prefix = 'Data grid updated. Currently showing ';
+  const scope =
+    activeFilter === 'ALL'
+      ? 'all accounts.'
+      : activeFilter === 'HIGH_RISK'
+        ? 'high risk accounts.'
+        : activeFilter === 'KYC'
+          ? 'active KYC profiles.'
+          : activeFilter === 'FLAGGED'
+            ? 'flagged transactions.'
+            : activeFilter === 'ALERTS'
+              ? 'AML alerts open.'
+              : 'all accounts.';
+  return prefix + scope;
+};
+
 // Derived state: filter predicate applied to raw dataset; single source of truth for grid payload.
 const filterRecords = (records: KycRecord[], activeFilter: ActiveFilter): KycRecord[] => {
   if (activeFilter === 'ALL') return records;
@@ -143,6 +161,14 @@ export const DashboardView = () => {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Screen reader announcer: polite live region for filter state changes; sr-only keeps it off-screen. */}
+      <div
+        className="sr-only"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {getLiveAnnouncement(activeFilter)}
+      </div>
       {/* KPI Row — interactive filter toggles; active card drives grid data slice; AODA-compliant focus trap context */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" role="group" aria-label="Dashboard filter toggles">
         {KPI_DATASET.map((kpi) => (
