@@ -24,8 +24,9 @@ const FOCUS_TRAP_SELECTOR =
 // aria-live="polite": The status region announces form submission outcomes
 // without interrupting the current screen reader narration context.
 export const AuditDrawer = ({ isOpen, onClose, transactionId }: AuditDrawerProps) => {
-  const drawerRef       = useRef<HTMLDivElement>(null);
-  const firstFocusRef   = useRef<HTMLButtonElement>(null);
+  const drawerRef         = useRef<HTMLDivElement>(null);
+  const firstFocusRef     = useRef<HTMLButtonElement>(null);
+  const previousFocusRef  = useRef<HTMLElement | null>(null);
 
   const {
     register,
@@ -36,14 +37,28 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId }: AuditDrawerProps
     resolver: zodResolver(auditSchema),
   });
 
-  // Focus Trap implementation — intercepts Tab / Shift+Tab keydown events
-  // and cycles focus within the drawer boundary when isOpen is true.
-  // Teardown: event listener is removed on close or unmount to prevent ghost handlers.
+  // Focus Trap — Event Interception on drawer container (capture phase).
+  // Confines Tab/Shift+Tab to tabbable elements inside the drawer; Loop Boundary
+  // wraps last→first and first→last. DOM Querying runs on each keydown so
+  // dynamically added/removed controls are respected. Teardown on close/unmount
+  // for Memory Leak Prevention.
+  //
+  // Active Element Caching: on open we store the trigger (document.activeElement)
+  // in previousFocusRef, then move focus into the drawer so keyboard users land
+  // on the Close button without an extra Tab. On teardown (isOpen → false),
+  // Focus Restoration returns focus to the exact element that opened the drawer.
   useEffect(() => {
     if (!isOpen) return;
 
-    // Hydrate focus to the primary close affordance on open
+    const container = drawerRef.current;
+    if (!container) return;
+
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
     firstFocusRef.current?.focus();
+
+    const getTabbable = (): HTMLElement[] =>
+      Array.from(container.querySelectorAll<HTMLElement>(FOCUS_TRAP_SELECTOR))
+        .filter((el) => !el.hasAttribute('disabled'));
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -53,35 +68,40 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId }: AuditDrawerProps
 
       if (e.key !== 'Tab') return;
 
-      const drawer   = drawerRef.current;
-      if (!drawer) return;
-
-      const focusable = Array.from(
-        drawer.querySelectorAll<HTMLElement>(FOCUS_TRAP_SELECTOR)
-      ).filter((el) => !el.hasAttribute('disabled'));
-
+      const focusable = getTabbable();
       if (focusable.length === 0) return;
 
       const first = focusable[0];
-      const last  = focusable[focusable.length - 1];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      const activeIndex = active ? focusable.indexOf(active) : -1;
 
       if (e.shiftKey) {
-        // Shift+Tab: wrap from first element back to last
-        if (document.activeElement === first) {
+        // Shift+Tab: Loop Boundary — first element wraps to last; Focus Restoration if outside trap
+        if (activeIndex < 0) {
+          e.preventDefault();
+          last.focus();
+        } else if (active === first) {
           e.preventDefault();
           last.focus();
         }
       } else {
-        // Tab: wrap from last element forward to first
-        if (document.activeElement === last) {
+        // Tab: Loop Boundary — last element wraps to first; Focus Restoration if outside trap
+        if (activeIndex < 0) {
+          e.preventDefault();
+          first.focus();
+        } else if (active === last) {
           e.preventDefault();
           first.focus();
         }
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    container.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      previousFocusRef.current?.focus();
+      container.removeEventListener('keydown', handleKeyDown, true);
+    };
   }, [isOpen, onClose]);
 
   // History API Hijacking — intercept iOS Safari edge-swipe-to-go-back so the

@@ -5,7 +5,7 @@ import { useDataRedaction } from '../hooks/useDataRedaction';
 
 type RecordStatus = 'FLAGGED' | 'REVIEW' | 'CLEAR';
 
-interface KycRecord {
+export interface KycRecord {
   id:           string;
   customerName: string;
   email:        string;
@@ -19,7 +19,7 @@ interface KycRecord {
 // Deterministic mock data generation — seeded with index to produce
 // stable, reproducible records across re-renders without triggering
 // referential identity changes in the virtualizer scroll engine.
-const generateKycRecords = (): KycRecord[] => {
+export const generateKycRecords = (): KycRecord[] => {
   const firstNames = ['James', 'Sarah', 'Michael', 'Emma', 'David', 'Olivia', 'Daniel', 'Sophia', 'William', 'Isabella'];
   const lastNames  = ['Chen', 'Patel', 'Rodriguez', 'Thompson', 'Williams', 'Johnson', 'Martinez', 'Davis', 'Wilson', 'Anderson'];
   const statuses: RecordStatus[] = ['FLAGGED', 'REVIEW', 'CLEAR'];
@@ -73,6 +73,9 @@ interface AmlDataGridProps {
   // Callback dispatched on row selection — bubbles the transaction ID up to
   // the parent state machine to hydrate the AuditDrawer context payload.
   onRowClick: (id: string) => void;
+  // Optional data source — when provided (e.g. filtered from DashboardView),
+  // grid renders this slice; otherwise falls back to internal static dataset.
+  records?: KycRecord[];
 }
 
 // Viewport detection — keeps estimateSize in sync with the active layout mode.
@@ -93,20 +96,31 @@ const useIsTabletOrLarger = (): boolean => {
 
 // AML Data Grid — virtualized KYC record viewer with Table-to-Card responsive degradation.
 //
+// Virtual Windowing: only rows intersecting the viewport (plus overscan) are mounted.
+// The virtualizer computes a sliding window of indices; DOM is limited to that window
+// instead of N rows, preventing O(n) node count and keeping layout/paint cost constant.
+//
+// DOM Node Recycling: as the user scrolls, the same physical DOM nodes are reused for
+// newly visible items; the virtualizer assigns content by index and repositions nodes
+// via transform. No unbounded growth of row elements — fixed pool, stable memory.
+//
+// Layout Thrashing Prevention: getTotalSize() is driven by measured heights (see below).
+// Measurement is delegated to measureElement + ResizeObserver; the virtualizer batches
+// size updates and recalculates scroll extent without synchronous reflows in the hot path.
+//
 // Dynamic Height Measurement: the outermost row wrapper uses `ref={virtualizer.measureElement}`
 // paired with `data-index` so the virtualizer's internal ResizeObserver maps each rendered
 // DOM node back to its virtual item and recalculates getTotalSize() with actual heights.
-// This eliminates the layout clipping that occurs when a fixed height is smaller than
-// the card's rendered content.
-export const AmlDataGrid = ({ onRowClick }: AmlDataGridProps) => {
+// This eliminates layout clipping when a fixed estimate is smaller than the card's content.
+export const AmlDataGrid = ({ onRowClick, records: recordsProp }: AmlDataGridProps) => {
   const { isRedacted, revealData } = useDataRedaction();
   const isTabletOrLarger           = useIsTabletOrLarger();
   const scrollContainerRef         = useRef<HTMLDivElement>(null);
+  const dataSource                 = recordsProp ?? KYC_RECORDS;
 
   const virtualizer = useVirtualizer({
-    count:            KYC_RECORDS.length,
+    count:            dataSource.length,
     getScrollElement: () => scrollContainerRef.current,
-    // estimateSize seeds getTotalSize() before measureElement populates actuals.
     estimateSize:     () => isTabletOrLarger ? ESTIMATE_DESKTOP_PX : ESTIMATE_MOBILE_PX,
     overscan:         5,
   });
@@ -123,7 +137,7 @@ export const AmlDataGrid = ({ onRowClick }: AmlDataGridProps) => {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-elevated">
         <h3 className="text-sm font-semibold text-text-primary">KYC Transaction Records</h3>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-text-muted">{KYC_RECORDS.length.toLocaleString()} records</span>
+          <span className="text-xs text-text-muted">{dataSource.length.toLocaleString()} records</span>
           <button
             onClick={revealData}
             title={isRedacted ? 'Reveal sensitive data (30s window)' : 'Data exposed — auto-redaction active'}
@@ -148,20 +162,21 @@ export const AmlDataGrid = ({ onRowClick }: AmlDataGridProps) => {
         <span className="text-right">Amount (CAD)</span>
       </div>
 
-      {/* Virtualized scroll container */}
+      {/* Virtualized scroll container — ref is the scroll anchor for TanStack Virtual's physics engine. */}
       <div ref={scrollContainerRef} className="h-[500px] overflow-auto">
-        {/* Spacer — sized by getTotalSize() which updates as measureElement reports actual heights */}
+        {/* Total height spacer: getTotalSize() yields the sum of measured/estimated row heights;
+            absolute-positioned children are laid out inside this box to preserve scroll extent
+            and prevent layout thrashing from variable-height rows (desktop vs mobile cards). */}
         <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
-            const record       = KYC_RECORDS[virtualRow.index];
+            const record       = dataSource[virtualRow.index];
             const handleActivate = () => onRowClick(record.id);
 
             return (
-              // Measurement wrapper — NO fixed height.
-              // `ref={virtualizer.measureElement}` + `data-index` constitute the
-              // DOM Mapping contract: the virtualizer's ResizeObserver uses data-index
-              // to look up the virtual item and update its measured size in the
-              // internal size cache, driving accurate scroll total recalculation.
+              /* Row node: absolute + translateY(virtualRow.start) — required by TanStack Virtual
+                 so the engine can stack recycled DOM nodes in document order while preserving
+                 correct scroll position. measureElement + data-index feed the size cache for
+                 getTotalSize(); no fixed height here to allow dynamic card/row measurement. */
               <div
                 key={virtualRow.key}
                 data-index={virtualRow.index}
@@ -169,7 +184,12 @@ export const AmlDataGrid = ({ onRowClick }: AmlDataGridProps) => {
                 role="button"
                 tabIndex={0}
                 onClick={handleActivate}
-                onKeyDown={(e) => e.key === 'Enter' && handleActivate()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleActivate();
+                  }
+                }}
                 style={{
                   position:  'absolute',
                   top:       0,
@@ -177,7 +197,7 @@ export const AmlDataGrid = ({ onRowClick }: AmlDataGridProps) => {
                   width:     '100%',
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
-                className="cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-inset focus:ring-border-focus active:scale-[0.98]"
+                className="cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-inset focus:z-10 active:scale-[0.98]"
               >
                 {/* ── Desktop (md+): high-density tabular row ── */}
                 <div className="hidden md:grid md:grid-cols-[1fr_2fr_1.5fr_1fr_1fr_1fr] gap-3 items-center px-4 py-3 text-sm border-b border-border hover:bg-surface-elevated">
