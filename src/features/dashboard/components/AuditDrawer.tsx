@@ -4,6 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { X, FileText, CheckCircle, Lock, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { RequireRole } from '../../auth/components/RequireRole';
 import { useAuthStore } from '../../auth/store/useAuthStore';
+import { useFocusTrap } from '../../../core/hooks/useFocusTrap';
+import { useDrawerHistory } from '../../../core/hooks/useDrawerHistory';
 import { auditSchema, type AuditPayload } from '../schemas/auditSchema';
 import { maskAccount, maskSin } from '../utils/dataRedaction';
 
@@ -14,25 +16,16 @@ interface AuditDrawerProps {
   sinNumber?:      string | null;
 }
 
-// Focusable selector — all interactive elements that participate in the
-// Tab cycle within the drawer's focus trap boundary.
-const FOCUS_TRAP_SELECTOR =
-  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
 // AuditDrawer — AODA-compliant sliding panel for KYC transaction annotation.
-//
-// Focus Trap: When the drawer opens, keyboard focus is confined to its interior.
-// This prevents screen reader users and keyboard navigators from inadvertently
-// interacting with the obscured background content — a WCAG 2.1 SC 2.1.2 requirement.
-//
-// aria-live="polite": The status region announces form submission outcomes
-// without interrupting the current screen reader narration context.
+// Focus Trap and History API are delegated to dedicated hooks; presentation only.
 export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: AuditDrawerProps) => {
   const role = useAuthStore((state) => state.user?.role);
   const [isRevealed, setIsRevealed] = useState(false);
-  const drawerRef         = useRef<HTMLDivElement>(null);
-  const firstFocusRef     = useRef<HTMLButtonElement>(null);
-  const previousFocusRef  = useRef<HTMLElement | null>(null);
+  const drawerRef     = useRef<HTMLDivElement>(null);
+  const firstFocusRef = useRef<HTMLButtonElement>(null);
+
+  useFocusTrap(drawerRef, isOpen, onClose, { firstFocusRef });
+  useDrawerHistory(isOpen, onClose);
 
   const {
     register,
@@ -42,95 +35,6 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
   } = useForm<AuditPayload>({
     resolver: zodResolver(auditSchema),
   });
-
-  // Focus Trap — Event Interception on drawer container (capture phase).
-  // Confines Tab/Shift+Tab to tabbable elements inside the drawer; Loop Boundary
-  // wraps last→first and first→last. DOM Querying runs on each keydown so
-  // dynamically added/removed controls are respected. Teardown on close/unmount
-  // for Memory Leak Prevention.
-  //
-  // Active Element Caching: on open we store the trigger (document.activeElement)
-  // in previousFocusRef, then move focus into the drawer so keyboard users land
-  // on the Close button without an extra Tab. On teardown (isOpen → false),
-  // Focus Restoration returns focus to the exact element that opened the drawer.
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const container = drawerRef.current;
-    if (!container) return;
-
-    previousFocusRef.current = document.activeElement as HTMLElement | null;
-    firstFocusRef.current?.focus();
-
-    const getTabbable = (): HTMLElement[] =>
-      Array.from(container.querySelectorAll<HTMLElement>(FOCUS_TRAP_SELECTOR))
-        .filter((el) => !el.hasAttribute('disabled'));
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        return;
-      }
-
-      if (e.key !== 'Tab') return;
-
-      const focusable = getTabbable();
-      if (focusable.length === 0) return;
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      const activeIndex = active ? focusable.indexOf(active) : -1;
-
-      if (e.shiftKey) {
-        // Shift+Tab: Loop Boundary — first element wraps to last; Focus Restoration if outside trap
-        if (activeIndex < 0) {
-          e.preventDefault();
-          last.focus();
-        } else if (active === first) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else {
-        // Tab: Loop Boundary — last element wraps to first; Focus Restoration if outside trap
-        if (activeIndex < 0) {
-          e.preventDefault();
-          first.focus();
-        } else if (active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    container.addEventListener('keydown', handleKeyDown, true);
-    return () => {
-      previousFocusRef.current?.focus();
-      container.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [isOpen, onClose]);
-
-  // History API Hijacking — intercept iOS Safari edge-swipe-to-go-back so the
-  // gesture closes the drawer instead of navigating out of the app. When the
-  // drawer opens we push a synthetic history entry; the popstate listener
-  // invokes onClose() so the drawer dismisses and the user stays in-app.
-  // Strict unmount cleanup removes the listener to avoid memory leaks and
-  // ghost callbacks after the component tree is deallocated.
-  useEffect(() => {
-    if (!isOpen) return;
-
-    window.history.pushState({ drawer: 'audit' }, '');
-
-    const handlePopState = () => {
-      onClose();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [isOpen, onClose]);
 
   // Reset form state and reveal state on drawer close to prevent stale payload persistence
   // across separate transaction selections.

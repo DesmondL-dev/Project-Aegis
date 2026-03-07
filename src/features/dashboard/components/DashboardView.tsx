@@ -2,13 +2,13 @@ import { useState, useCallback, useMemo } from 'react';
 import { AlertTriangle, Users, DollarSign, ShieldAlert, AlertCircle, RefreshCw, Settings, Download } from 'lucide-react';
 import { ErrorBoundary } from '../../../core/errors/ErrorBoundary';
 import { RequireRole } from '../../auth/components/RequireRole';
-import { AmlDataGrid, type KycRecord } from './AmlDataGrid';
+import { AmlDataGrid } from './AmlDataGrid';
 import { AmlDataGridSkeleton } from './AmlDataGridSkeleton';
 import { AuditDrawer } from './AuditDrawer';
 import { useAmlData } from '../hooks/useAmlData';
+import { useFilteredAmlRecords, type ActiveFilter } from '../hooks/useFilteredAmlRecords';
 
-// Master filter state — drives both KPI card active styling and grid data slice (master-detail linking).
-export type ActiveFilter = 'ALL' | 'HIGH_RISK' | 'KYC' | 'FLAGGED' | 'ALERTS';
+export type { ActiveFilter };
 
 interface KpiCardProps {
   label:    string;
@@ -119,23 +119,6 @@ const getLiveAnnouncement = (activeFilter: ActiveFilter): string => {
   return prefix + scope;
 };
 
-// Derived state: filter predicate applied to raw dataset; single source of truth for grid payload.
-const filterRecords = (records: KycRecord[], activeFilter: ActiveFilter): KycRecord[] => {
-  if (activeFilter === 'ALL') return records;
-  switch (activeFilter) {
-    case 'HIGH_RISK':
-      return records.filter((r) => r.riskScore >= 75);
-    case 'KYC':
-      return records.filter((r) => r.status === 'REVIEW');
-    case 'FLAGGED':
-      return records.filter((r) => r.status === 'FLAGGED');
-    case 'ALERTS':
-      return records.filter((r) => r.status !== 'CLEAR');
-    default:
-      return records;
-  }
-};
-
 // Critical state fallback — query failure surface with retry CTA for query invalidation.
 const AmlDataErrorFallback = ({ onRetry }: { onRetry: () => void }) => (
   <div
@@ -166,10 +149,7 @@ export const DashboardView = () => {
 
   const { data, isLoading, isError, refetch } = useAmlData();
   const rawRecords = useMemo(() => data ?? [], [data]);
-  const filteredRecords = useMemo(
-    () => filterRecords(rawRecords, activeFilter),
-    [rawRecords, activeFilter]
-  );
+  const filteredRecords = useFilteredAmlRecords(rawRecords, activeFilter);
 
   const handleFilterToggle = useCallback((key: ActiveFilter) => {
     setActiveFilter((prev) => (prev === key ? 'ALL' : key));

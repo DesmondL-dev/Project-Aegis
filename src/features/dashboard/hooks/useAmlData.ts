@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { generateKycRecords, type KycRecord } from '../components/AmlDataGrid';
+import { generateKycRecords, type KycRecord } from '../data/kycMockData';
 
 const AML_DATA_QUERY_KEY = ['amlData'] as const;
 
