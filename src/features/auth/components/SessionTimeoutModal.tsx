@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 const COUNTDOWN_SECONDS = 60;
+const COUNTDOWN_MS = COUNTDOWN_SECONDS * 1000;
 const FOCUS_TRAP_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -12,7 +13,9 @@ export interface SessionTimeoutModalProps {
 
 /**
  * Countdown teardown modal — view layer for dual-phase session timeout.
- * When open: 60s countdown via setInterval; at 0 invokes onLogout.
+ * When open: 60s countdown derived from an absolute target timestamp; at 0 invokes onLogout.
+ * A07 mitigation: interval only drives UI ticks; remaining time is always computed from
+ * targetTime so background tab throttling cannot freeze the countdown.
  * AODA: role="dialog", aria-modal, focus trap, highest z-index.
  */
 export function SessionTimeoutModal({
@@ -22,27 +25,46 @@ export function SessionTimeoutModal({
 }: SessionTimeoutModalProps) {
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Utilize absolute target timestamp to defeat browser background throttling.
+  // Remaining seconds are derived from (targetTime - now) each tick, so stalled
+  // intervals after tab focus return still yield the correct value on next tick or visibility sync.
+  const targetTimeRef = useRef<number>(0);
   const modalRef = useRef<HTMLDivElement>(null);
   const firstFocusRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
+    targetTimeRef.current = Date.now() + COUNTDOWN_MS;
     setSecondsLeft(COUNTDOWN_SECONDS);
-    intervalRef.current = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-          onLogout();
-          return 0;
+
+    const syncRemaining = () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((targetTimeRef.current - Date.now()) / 1000)
+      );
+      setSecondsLeft(remaining);
+      if (remaining <= 0) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
         }
-        return prev - 1;
-      });
-    }, 1000);
+        onLogout();
+      }
+    };
+
+    intervalRef.current = setInterval(syncRemaining, 1000);
+
+    // On tab focus return, recalculate remaining immediately so the user never
+    // sees a stale countdown before the next (possibly delayed) interval tick.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      syncRemaining();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
