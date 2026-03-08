@@ -4,11 +4,11 @@ import { z } from 'zod';
 // Applied at the schema transform boundary before any payload reaches
 // the render pipeline, neutralizing OWASP A03 (Injection) attack surface.
 const HTML_ESCAPE_MAP: Record<string, string> = {
-  '&':  '&amp;',   // Must be first — prevents double-encoding of subsequent replacements
-  '<':  '&lt;',
-  '>':  '&gt;',
-  '"':  '&quot;',
-  "'":  '&#x27;',
+  '&': '&amp;',   // Must be first — prevents double-encoding of subsequent replacements
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#x27;',
 };
 
 // Escape all five dangerous HTML entities in a single pass.
@@ -19,12 +19,12 @@ const escapeHtml = (raw: string): string =>
 export const auditSchema = z.object({
   notes: z
     .string()
-    .min(1, { message: 'Audit notes payload is required.' })
+
+    .min(10, { message: 'Audit justification must contain at least 10 characters for compliance logging.' })
     .max(1000, { message: 'Audit notes must not exceed 1000 characters.' })
-    // XSS Sanitization Transform — all HTML special characters are escaped
-    // before the payload is stored or re-rendered. This is a defense-in-depth
-    // layer: it does not replace output encoding at the render boundary,
-    // but prevents unsanitized payloads from persisting in the data layer.
+
+    .regex(/^(?!.*<script\b[^>]*>).*$/i, { message: '[OWASP A03_ALERT] Active script injection payload detected and blocked by Zero-Trust Gateway.' })
+
     .transform((val) => escapeHtml(val.trim())),
 });
 

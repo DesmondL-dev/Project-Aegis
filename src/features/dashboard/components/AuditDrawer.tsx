@@ -21,6 +21,9 @@ interface AuditDrawerProps {
 export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: AuditDrawerProps) => {
   const role = useAuthStore((state) => state.user?.role);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [isXRayMode, setIsXRayMode] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
+  const [recoveryRequested, setRecoveryRequested] = useState(false);
   const drawerRef     = useRef<HTMLDivElement>(null);
   const firstFocusRef = useRef<HTMLButtonElement>(null);
 
@@ -42,6 +45,8 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
     if (!isOpen) {
       reset();
       setIsRevealed(false);
+      setIsFrozen(false);
+      setRecoveryRequested(false);
     }
   }, [isOpen, reset]);
 
@@ -73,20 +78,32 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Drawer header */}
+        {/* Drawer header — title and close with discrete Decoupling Matrix toggle in document flow */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface-elevated">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-text-muted" />
             <h2 className="text-sm font-semibold text-text-primary">Audit Annotation</h2>
           </div>
-          <button
-            ref={firstFocusRef}
-            onClick={onClose}
-            aria-label="Close audit drawer"
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsXRayMode((prev) => !prev)}
+              aria-label={isXRayMode ? 'Disable Zod X-Ray mode' : 'Enable Zod X-Ray mode'}
+              className={`text-[10px] font-mono tracking-wider transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus rounded px-1 ${
+                isXRayMode ? 'text-emerald-500' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              [ X-RAY ZOD: {isXRayMode ? 'ON' : 'OFF'} ]
+            </button>
+            <button
+              ref={firstFocusRef}
+              onClick={onClose}
+              aria-label="Close audit drawer"
+              className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Transaction context — RBAC masking: ANALYST sees last-four only. */}
@@ -140,15 +157,34 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
             </label>
             {/* Safari iOS Zoom Prevent: font-size must be >= 16px on mobile or Safari
                 auto-zooms the viewport on focus. text-[16px] on small viewports, md:text-sm above. */}
+            {/* State-machine lockout: freeze action disables annotation to demonstrate RBAC enforcement. */}
             <textarea
               id="audit-notes"
               {...register('notes')}
               rows={8}
+              disabled={isFrozen}
               placeholder="Document the rationale for this transaction review. All input is HTML-sanitized before persistence."
-              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[16px] md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-border-focus transition-colors"
+              className={`w-full resize-none rounded-lg border border-border px-3 py-2 text-[16px] md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-border-focus transition-colors ${
+                isFrozen ? 'bg-slate-200 cursor-not-allowed opacity-70 dark:bg-slate-800' : 'bg-background'
+              }`}
             />
-            {errors.notes && (
+            {/* Intercept and visualize raw Zod validation payload to demonstrate logic layer decoupling. */}
+            {errors.notes && !isXRayMode && (
               <p className="text-xs text-red-500">{errors.notes.message}</p>
+            )}
+            {errors.notes && isXRayMode && (
+              <pre className="mt-2 p-2 rounded-md text-xs font-mono overflow-x-auto whitespace-pre-wrap bg-slate-50 border border-slate-200 text-slate-700 dark:bg-slate-900/50 dark:border-slate-800 dark:text-slate-300">
+                {/* Sanitize error payload to prevent circular DOM reference crashes during JSON serialization. */}
+                {JSON.stringify(
+                  {
+                    type: errors.notes.type,
+                    message: errors.notes.message,
+                    ref: '[DOM_NODE_REDACTED]',
+                  },
+                  null,
+                  2
+                )}
+              </pre>
             )}
             <p className="text-xs text-text-muted text-right">Max 1,000 characters</p>
           </div>
@@ -166,21 +202,36 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
 
           {/* High-privilege actions — RBAC: ANALYST cannot see or interact; DOM cloaking via RequireRole. */}
           <RequireRole allowedRoles={['ADMIN']}>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Administrator account actions">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
-              >
-                <Lock className="w-4 h-4" />
-                Freeze Account
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Initiate Recovery
-              </button>
+            <div className="flex flex-col w-full">
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Administrator account actions">
+                {/* State-machine lockout triggered by high-privilege freeze action; toggles form editability. */}
+                <button
+                  type="button"
+                  onClick={() => setIsFrozen((prev) => !prev)}
+                  className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus ${
+                    isFrozen
+                      ? 'border border-slate-400 text-slate-500 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-800/50'
+                      : 'border border-red-500/40 text-red-400 hover:bg-red-500/10 focus:ring-red-500/50'
+                  }`}
+                >
+                  <Lock className="w-4 h-4" />
+                  {isFrozen ? '[ LOCKED ] Unfreeze Account' : 'Freeze Account'}
+                </button>
+                {/* Mock Step-Up authentication for Zero-Trust compliance demonstration. */}
+                <button
+                  type="button"
+                  onClick={() => setRecoveryRequested(true)}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Initiate Recovery
+                </button>
+              </div>
+              {recoveryRequested && (
+                <div className="w-full mt-2 text-[10px] font-mono text-red-500 animate-pulse">
+                  [AUTH_STEP_UP] Hardware Security Key (YubiKey) signature required.
+                </div>
+              )}
             </div>
           </RequireRole>
 
@@ -194,7 +245,7 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isFrozen}
               className="flex-1 py-2 text-sm font-semibold rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Committing...' : 'Submit Audit'}
