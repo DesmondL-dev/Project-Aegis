@@ -8,6 +8,8 @@ export interface ErrorBoundaryState {
 
 interface ErrorBoundaryProps {
   children: ReactNode;
+  /** Optional teardown invoked when user clicks Reload; e.g. reset parent state that caused the throw. */
+  onReset?: () => void;
 }
 
 /**
@@ -34,6 +36,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   handleReload = (): void => {
+    this.props.onReset?.();
     this.setState({ hasError: false, error: null });
   };
 

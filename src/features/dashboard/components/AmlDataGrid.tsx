@@ -38,6 +38,10 @@ interface AmlDataGridProps {
   // Optional data source — when provided (e.g. filtered from DashboardView),
   // grid renders this slice; otherwise falls back to internal static dataset.
   records?: KycRecord[];
+  // Chaos engineering hook: parent-owned state setter propagated down so the
+  // trigger button lives in the correct document-flow position (grid header)
+  // while the actual throw occurs inside the parent's ErrorBoundary subtree.
+  onSimulateCrash?: () => void;
 }
 
 // Viewport detection — keeps estimateSize in sync with the active layout mode.
@@ -74,7 +78,7 @@ const useIsTabletOrLarger = (): boolean => {
 // paired with `data-index` so the virtualizer's internal ResizeObserver maps each rendered
 // DOM node back to its virtual item and recalculates getTotalSize() with actual heights.
 // This eliminates layout clipping when a fixed estimate is smaller than the card's content.
-export const AmlDataGrid = ({ onRowClick, records: recordsProp }: AmlDataGridProps) => {
+export const AmlDataGrid = ({ onRowClick, records: recordsProp, onSimulateCrash }: AmlDataGridProps) => {
   const role = useAuthStore((state) => state.user?.role);
   const { isRedacted, revealData } = useDataRedaction();
   const isTabletOrLarger           = useIsTabletOrLarger();
@@ -94,7 +98,7 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp }: AmlDataGridPro
       {/* Grid header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-elevated">
         <h3 className="text-sm font-semibold text-text-primary">KYC Transaction Records</h3>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-text-muted">{dataSource.length.toLocaleString()} records</span>
           <RequireRole allowedRoles={['ADMIN']}>
             <button
@@ -109,6 +113,18 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp }: AmlDataGridPro
               )}
             </button>
           </RequireRole>
+          {/* Chaos engineering trigger: inline within the header flow to prevent document-flow disruption.
+              State setter is owned by the parent (DashboardView) so the actual throw stays inside
+              the ErrorBoundary subtree — this button is purely a dispatch mechanism. */}
+          {onSimulateCrash && (
+            <button
+              type="button"
+              onClick={onSimulateCrash}
+              className="px-2 py-1 text-xs font-mono text-slate-500 hover:text-slate-300 border border-slate-700/50 bg-transparent rounded focus:outline-none focus:ring-1 focus:ring-slate-500/50 transition-colors"
+            >
+              [ Simulate Network Drop ]
+            </button>
+          )}
         </div>
       </div>
 
