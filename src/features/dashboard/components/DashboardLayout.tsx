@@ -18,7 +18,7 @@ export const DashboardLayout = () => {
   const user             = useAuthStore((state) => state.user);
   const teardownSession  = useAuthStore((state) => state.teardownSession);
   const navigate = useNavigate();
-  const { isIdle, resetIdleTimer } = useIdleTimeout();
+  const { isIdle, resetIdleTimer, forceTimeout } = useIdleTimeout();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
@@ -50,6 +50,17 @@ export const DashboardLayout = () => {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Dead Man's Switch trigger — intentionally low-contrast to remain invisible
+              during normal operation; surfaces only to a trained eye during live demos.
+              Bypasses the IDLE_MS wall clock via forceTimeout escape hatch. */}
+          <button
+            type="button"
+            onClick={forceTimeout}
+            className="text-[10px] font-mono tracking-wider text-slate-500 hover:text-slate-300 transition-colors focus:outline-none"
+          >
+            [ Fast-Forward Teardown ]
+          </button>
+
           {/* User identity payload display */}
           {user && (
             <div className="text-right hidden sm:block">
