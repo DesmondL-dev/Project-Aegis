@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../../auth/store/useAuthStore';
+import { useAuditStore } from '../store/useAuditStore';
 import { useDataRedaction } from '../hooks/useDataRedaction';
 import { maskAccount, maskSin } from '../utils/dataRedaction';
 import { RequireRole } from '../../auth/components/RequireRole';
@@ -80,6 +81,7 @@ const useIsTabletOrLarger = (): boolean => {
 // This eliminates layout clipping when a fixed estimate is smaller than the card's content.
 export const AmlDataGrid = ({ onRowClick, records: recordsProp, onSimulateCrash }: AmlDataGridProps) => {
   const role = useAuthStore((state) => state.user?.role);
+  const frozenRecords = useAuditStore((state) => state.frozenRecords);
   const { isRedacted, revealData } = useDataRedaction();
   const isTabletOrLarger           = useIsTabletOrLarger();
   const scrollContainerRef         = useRef<HTMLDivElement>(null);
@@ -145,23 +147,28 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp, onSimulateCrash 
             and prevent layout thrashing from variable-height rows (desktop vs mobile cards). */}
         <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
-            const record       = dataSource[virtualRow.index];
-            const handleActivate = () => onRowClick(record.id);
+            const record         = dataSource[virtualRow.index];
+            const isFrozen       = !!frozenRecords[record.id];
+            const isLockedOut    = isFrozen && role !== 'ADMIN';
+            const handleActivate = () => { if (!isLockedOut) onRowClick(record.id); };
 
             return (
               /* Row node: absolute + translateY(virtualRow.start) — required by TanStack Virtual
                  so the engine can stack recycled DOM nodes in document order while preserving
                  correct scroll position. measureElement + data-index feed the size cache for
-                 getTotalSize(); no fixed height here to allow dynamic card/row measurement. */
+                 getTotalSize(); no fixed height here to allow dynamic card/row measurement.
+                 RBAC lockout: nullify event handlers and drop from tab sequence for strict
+                 view-layer isolation when non-admin encounters a frozen record. */
               <div
                 key={virtualRow.key}
                 data-index={virtualRow.index}
                 ref={virtualizer.measureElement}
                 role="button"
-                tabIndex={0}
+                tabIndex={isLockedOut ? -1 : 0}
                 onClick={handleActivate}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
+                    if (isLockedOut) return;
                     e.preventDefault();
                     handleActivate();
                   }
@@ -173,11 +180,11 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp, onSimulateCrash 
                   width:     '100%',
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
-                className="cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-inset focus:z-10 active:scale-[0.98]"
+                className={`transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-inset focus:z-10 ${isLockedOut ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-900/50 grayscale' : 'cursor-pointer hover:bg-surface-elevated active:scale-[0.98]'}`}
               >
                 {/* ── Desktop (md+): high-density tabular row ── */}
                 <div className="hidden md:grid md:grid-cols-[1fr_2fr_1.5fr_1fr_1fr_1fr] gap-3 items-center px-4 py-3 text-sm border-b border-border hover:bg-surface-elevated">
-                  <span className="font-mono text-xs text-text-muted">{maskAccount(record.id, role)}</span>
+                  <span className="font-mono text-xs text-text-muted">{maskAccount(record.id, role)}{isFrozen && <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-slate-500 bg-slate-200 dark:bg-slate-800 dark:text-slate-400 rounded-sm">[ FROZEN ]</span>}</span>
                   <div className="flex flex-col min-w-0">
                     <span className="text-text-primary truncate text-xs font-medium">{record.customerName}</span>
                     <span className="text-text-muted truncate text-xs">{record.email}</span>
@@ -219,7 +226,7 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp, onSimulateCrash 
                   <div className="flex flex-col gap-3">
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Record ID</span>
-                      <span className="font-mono text-xs text-text-primary">{maskAccount(record.id, role)}</span>
+                      <span className="font-mono text-xs text-text-primary">{maskAccount(record.id, role)}{isFrozen && <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-slate-500 bg-slate-200 dark:bg-slate-800 dark:text-slate-400 rounded-sm">[ FROZEN ]</span>}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-medium text-text-muted uppercase tracking-wide">SIN</span>

@@ -7,6 +7,7 @@ import { useAuthStore } from '../../auth/store/useAuthStore';
 import { useFocusTrap } from '../../../core/hooks/useFocusTrap';
 import { useDrawerHistory } from '../../../core/hooks/useDrawerHistory';
 import { auditSchema, type AuditPayload } from '../schemas/auditSchema';
+import { useAuditStore } from '../store/useAuditStore';
 import { maskAccount, maskSin } from '../utils/dataRedaction';
 
 interface AuditDrawerProps {
@@ -22,8 +23,12 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
   const role = useAuthStore((state) => state.user?.role);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isXRayMode, setIsXRayMode] = useState(false);
-  const [isFrozen, setIsFrozen] = useState(false);
   const [recoveryRequested, setRecoveryRequested] = useState(false);
+  // Enforce unconditional global state subscription to comply with React Rules of Hooks, averting fatal unmounts during conditional renders.
+  const isFrozen = useAuditStore((state) =>
+    transactionId ? !!state.frozenRecords[transactionId] : false
+  );
+  const toggleFreeze = useAuditStore((state) => state.toggleFreeze);
   const drawerRef     = useRef<HTMLDivElement>(null);
   const firstFocusRef = useRef<HTMLButtonElement>(null);
 
@@ -45,7 +50,6 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
     if (!isOpen) {
       reset();
       setIsRevealed(false);
-      setIsFrozen(false);
       setRecoveryRequested(false);
     }
   }, [isOpen, reset]);
@@ -204,10 +208,10 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
           <RequireRole allowedRoles={['ADMIN']}>
             <div className="flex flex-col w-full">
               <div className="flex flex-wrap gap-2" role="group" aria-label="Administrator account actions">
-                {/* State-machine lockout triggered by high-privilege freeze action; toggles form editability. */}
+                {/* State-machine lockout triggered by high-privilege freeze action; toggles form editability via global store. */}
                 <button
                   type="button"
-                  onClick={() => setIsFrozen((prev) => !prev)}
+                  onClick={() => transactionId != null && toggleFreeze(transactionId)}
                   className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus ${
                     isFrozen
                       ? 'border border-slate-400 text-slate-500 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-800/50'
