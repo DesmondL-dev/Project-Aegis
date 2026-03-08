@@ -95,32 +95,32 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp, onSimulateCrash 
   
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
-      {/* Grid header */}
+      {/* Grid header — enforced flex-wrap container to prevent UI collision between records/SIN and Simulate button */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-elevated">
         <h3 className="text-sm font-semibold text-text-primary">KYC Transaction Records</h3>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-text-muted">{dataSource.length.toLocaleString()} records</span>
-          <RequireRole allowedRoles={['ADMIN']}>
-            <button
-              onClick={revealData}
-              title={isRedacted ? 'Reveal sensitive data (30s window)' : 'Data exposed — auto-redaction active'}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border text-text-muted hover:text-text-primary hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus"
-            >
-              {isRedacted ? (
-                <><Eye className="w-3.5 h-3.5" /> Reveal SIN</>
-              ) : (
-                <><EyeOff className="w-3.5 h-3.5" /> Auto-redacting</>
-              )}
-            </button>
-          </RequireRole>
-          {/* Chaos engineering trigger: inline within the header flow to prevent document-flow disruption.
-              State setter is owned by the parent (DashboardView) so the actual throw stays inside
-              the ErrorBoundary subtree — this button is purely a dispatch mechanism. */}
+        <div className="flex flex-wrap items-center justify-between gap-4 flex-1 min-w-0">
+          <div className="flex items-center gap-4 shrink-0">
+            <span className="text-xs text-text-muted">{dataSource.length.toLocaleString()} records</span>
+            <RequireRole allowedRoles={['ADMIN']}>
+              <button
+                onClick={revealData}
+                title={isRedacted ? 'Reveal sensitive data (30s window)' : 'Data exposed — auto-redaction active'}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border text-text-muted hover:text-text-primary hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus"
+              >
+                {isRedacted ? (
+                  <><Eye className="w-3.5 h-3.5" /> Reveal SIN</>
+                ) : (
+                  <><EyeOff className="w-3.5 h-3.5" /> Auto-redacting</>
+                )}
+              </button>
+            </RequireRole>
+          </div>
+          {/* Chaos engineering trigger: right-aligned in flow so it pushes content instead of overlapping */}
           {onSimulateCrash && (
             <button
               type="button"
               onClick={onSimulateCrash}
-              className="px-2 py-1 text-xs font-mono text-slate-500 hover:text-slate-300 border border-slate-700/50 bg-transparent rounded focus:outline-none focus:ring-1 focus:ring-slate-500/50 transition-colors"
+              className="px-2 py-1 text-xs font-mono text-slate-500 hover:text-slate-300 border border-slate-700/50 bg-transparent rounded focus:outline-none focus:ring-1 focus:ring-slate-500/50 transition-colors shrink-0"
             >
               [ Simulate Network Drop ]
             </button>
