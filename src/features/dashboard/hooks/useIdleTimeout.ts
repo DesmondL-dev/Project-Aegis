@@ -48,5 +48,21 @@ export function useIdleTimeout() {
     };
   }, []);
 
-  return { isIdle, resetIdleTimer };
+  // Dead Man's Switch — debug escape hatch for live demo environments.
+  // Bypasses the IDLE_MS wall clock entirely by directly mutating isIdle to true,
+  // collapsing the full idle observation cycle into a single synchronous dispatch.
+  // Clears both debounce and idle timers first to prevent a ghost reset race.
+  const forceTimeout = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsIdle(true);
+  }, []);
+
+  return { isIdle, resetIdleTimer, forceTimeout };
 }
