@@ -119,6 +119,13 @@ const getLiveAnnouncement = (activeFilter: ActiveFilter): string => {
   return prefix + scope;
 };
 
+// Isolated child component: the only correct pattern to trigger an ErrorBoundary is to throw
+// from a component that is a *child* of that boundary — never from the boundary's own render scope.
+// This component exists solely as a chaos engineering probe; it has no state and no side effects.
+const ChaosTrigger = (): never => {
+  throw new Error('Simulated Network Drop: Secondary nodes unreachable.');
+};
+
 // Critical state fallback — query failure surface with retry CTA for query invalidation.
 const AmlDataErrorFallback = ({ onRetry }: { onRetry: () => void }) => (
   <div
@@ -146,6 +153,8 @@ export const DashboardView = () => {
   const [isDrawerOpen,   setIsDrawerOpen]   = useState<boolean>(false);
   const [selectedTxId,   setSelectedTxId]   = useState<string | null>(null);
   const [activeFilter,   setActiveFilter]   = useState<ActiveFilter>('ALL');
+  // Chaos engineering toggle: render-phase crash to demonstrate ErrorBoundary and graceful degradation.
+  const [simulateCrash,  setSimulateCrash] = useState<boolean>(false);
 
   const { data, isLoading, isError, refetch } = useAmlData();
   const rawRecords = useMemo(() => data ?? [], [data]);
@@ -214,11 +223,18 @@ export const DashboardView = () => {
       </ErrorBoundary>
 
       {/* AML Data Grid — async payload; loading skeleton, error fallback, or filtered grid; contained failure surface. */}
-      <ErrorBoundary>
+      <ErrorBoundary onReset={() => setSimulateCrash(false)}>
+        {/* ChaosTrigger is mounted as a true child of this ErrorBoundary — the boundary's class-based
+            componentDidCatch lifecycle intercepts the throw and activates the fallback UI correctly. */}
+        {simulateCrash && <ChaosTrigger />}
         {isLoading && <AmlDataGridSkeleton />}
         {isError && <AmlDataErrorFallback onRetry={handleRetry} />}
         {!isLoading && !isError && (
-          <AmlDataGrid onRowClick={handleRowClick} records={filteredRecords} />
+          <AmlDataGrid
+            onRowClick={handleRowClick}
+            records={filteredRecords}
+            onSimulateCrash={() => setSimulateCrash(true)}
+          />
         )}
       </ErrorBoundary>
 
