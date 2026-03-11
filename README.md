@@ -12,6 +12,10 @@
 
 > An enterprise-grade, highly decoupled Single Page Application (SPA) engineered with surgical precision for Mid-Office Financial Operations. Designed to survive rigorous Tier-1 banking compliance audits.
 
+### ⚡ Live Demo & Role-Based Access
+Experience the RBAC (Role-Based Access Control) engine instantly. No registration required.
+👉 **[Launch Aegis Live Dashboard](https://project-aegis-black.vercel.app/)** *Click the **"Login as Admin"** or **"Login as Analyst"** buttons on the portal to witness dynamic Data Redaction and DOM node removal in real-time.*
+
 ## 🏗️ Architecture Philosophy & Topology
 
 Project Aegis strictly enforces **Absolute Decoupling (Separation of Concerns)**. It physically separates the Data Layer (Zod validations), Logic Layer (Custom Hooks & Zustand State Machines), and View Layer (Pure Presentation Components).
