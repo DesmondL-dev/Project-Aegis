@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { X, FileText, CheckCircle, Lock, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { RequireRole } from '../../auth/components/RequireRole';
 import { useAuthStore } from '../../auth/store/useAuthStore';
+import { DemoBeacon } from '../../../core/components/DemoBeacon';
 import { useFocusTrap } from '../../../core/hooks/useFocusTrap';
 import { useDrawerHistory } from '../../../core/hooks/useDrawerHistory';
 import { auditSchema, type AuditPayload } from '../schemas/auditSchema';
@@ -89,16 +90,19 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
             <h2 className="text-sm font-semibold text-text-primary">Audit Annotation</h2>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsXRayMode((prev) => !prev)}
-              aria-label={isXRayMode ? 'Disable Zod X-Ray mode' : 'Enable Zod X-Ray mode'}
-              className={`text-[10px] font-mono tracking-wider transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus rounded px-1 ${
-                isXRayMode ? 'text-emerald-500' : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              [ X-RAY ZOD: {isXRayMode ? 'ON' : 'OFF'} ]
-            </button>
+            <div className="relative">
+              <DemoBeacon message="👇 Click to test security " />
+              <button
+                type="button"
+                onClick={() => setIsXRayMode((prev) => !prev)}
+                aria-label={isXRayMode ? 'Disable Zod X-Ray mode' : 'Enable Zod X-Ray mode'}
+                className={`text-[10px] font-mono tracking-wider transition-colors focus:outline-none focus:ring-2 focus:ring-border-focus rounded px-1 ${
+                  isXRayMode ? 'text-emerald-500' : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                [ X-RAY ZOD: {isXRayMode ? 'ON' : 'OFF'} ]
+              </button>
+            </div>
             <button
               ref={firstFocusRef}
               onClick={onClose}
