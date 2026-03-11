@@ -27,6 +27,7 @@ export const LoginForm = () => {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginPayload>({
     resolver: zodResolver(loginSchema),
@@ -115,6 +116,37 @@ export const LoginForm = () => {
             </motion.div>
           ) : (
             <>
+              {/* One-Click Demo Access — HR/Recruiter bypass; pre-seeds form payload and triggers handshake. */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                  Demo Access
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue('email', 'admin@aegis.com');
+                      setValue('password', 'AegisAdmin!2026');
+                      handleSubmit(onSubmit)();
+                    }}
+                    className="flex-1 py-1.5 text-xs font-medium border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    Login as Admin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue('email', 'analyst@aegis.bank.com');
+                      setValue('password', 'AegisAnalyst!2026');
+                      handleSubmit(onSubmit)();
+                    }}
+                    className="flex-1 py-1.5 text-xs font-medium border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    Login as Analyst
+                  </button>
+                </div>
+              </div>
+
               {/* Email Payload Input */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
