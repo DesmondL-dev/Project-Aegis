@@ -14,7 +14,7 @@
 
 ### ⚡ Live Demo & Role-Based Access
 Experience the RBAC (Role-Based Access Control) engine instantly. No registration required.
-👉 **[Launch Aegis Live Dashboard](https://project-aegis-black.vercel.app/)** *Click the **"Login as Admin"** or **"Login as Analyst"** buttons on the portal to witness dynamic Data Redaction and DOM node removal in real-time.*
+👉 **[Launch Aegis Live Dashboard](https://project-aegis-black.vercel.app/?mode=demo)** *Click the **"Login as Admin"** or **"Login as Analyst"** buttons on the portal to witness dynamic Data Redaction and DOM node removal in real-time.*
 
 ## 🏗️ Architecture Philosophy & Topology
 
