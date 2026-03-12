@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardView } from './DashboardView';
 import { AodaTelemetryHUD } from './AodaTelemetryHUD';
-import { LogOut, Shield } from 'lucide-react';
+import { LogOut, Shield, Keyboard, X } from 'lucide-react';
 import { useAuthStore } from '../../auth/store/useAuthStore';
 import { SessionTimeoutModal } from '../../auth/components/SessionTimeoutModal';
 import { useIdleTimeout } from '../hooks/useIdleTimeout';
 import { useAodaTelemetry } from '../store/useAodaTelemetry';
+import { useDemoMode } from '../../../core/hooks/useDemoMode';
+import { DemoBeacon } from '../../../core/components/DemoBeacon';
 
 // Protected zone shell — rendered exclusively after the ProtectedRoute
 // perimeter has validated the authentication predicate.
@@ -22,10 +24,18 @@ export const DashboardLayout = () => {
   const navigate = useNavigate();
   const { isIdle, resetIdleTimer, forceTimeout } = useIdleTimeout();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { isDemoMode } = useDemoMode();
+  const [showAodaToast, setShowAodaToast] = useState(false);
 
   useEffect(() => {
     if (isIdle) setIsModalOpen(true);
   }, [isIdle]);
+
+  useEffect(() => {
+    if (!isDemoMode) return;
+    const t = setTimeout(() => setShowAodaToast(true), 2000);
+    return () => clearTimeout(t);
+  }, [isDemoMode]);
 
   // Session teardown pipeline: wipe in-memory state machine first,
   // then redirect — guarantees no stale auth payload persists during
@@ -55,10 +65,11 @@ export const DashboardLayout = () => {
           {/* Dead Man's Switch trigger — intentionally low-contrast to remain invisible
               during normal operation; surfaces only to a trained eye during live demos.
               Bypasses the IDLE_MS wall clock via forceTimeout escape hatch. */}
+          <DemoBeacon message="⏩ Test 5-Min Meltdown 👉" />
           <button
             type="button"
             onClick={forceTimeout}
-            onMouseEnter={() => useAodaTelemetry.getState().announce('Navigation focused. Screen reader active.')}
+            onMouseEnter={() => !isDemoMode && useAodaTelemetry.getState().announce('Navigation focused. Screen reader active.')}
             className="text-[10px] font-mono tracking-wider text-slate-500 hover:text-slate-300 transition-colors focus:outline-none"
           >
             [ Fast-Forward Teardown ]
@@ -121,6 +132,17 @@ export const DashboardLayout = () => {
         onStayLoggedIn={handleStayLoggedIn}
         onLogout={handleLogout}
       />
+
+      {showAodaToast && isDemoMode && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-start gap-3 p-4 bg-slate-900 border border-slate-700 rounded-lg shadow-xl dark:bg-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-500">
+          <Keyboard className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
+          <div className="flex flex-col gap-1 max-w-xs">
+            <p className="text-sm font-semibold text-white">Accessibility (AODA) Ready</p>
+            <p className="text-xs text-slate-300">Put down your mouse. Try pressing the <kbd className="px-1.5 py-0.5 bg-slate-700 rounded text-teal-300 font-mono text-[10px]">TAB</kbd> key to navigate securely.</p>
+          </div>
+          <button onClick={() => setShowAodaToast(false)} className="text-slate-400 hover:text-white transition-colors"><X className="w-4 h-4"/></button>
+        </div>
+      )}
     </div>
   );
 };
