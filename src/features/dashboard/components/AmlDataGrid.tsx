@@ -7,6 +7,7 @@ import { useDataRedaction } from '../hooks/useDataRedaction';
 import { maskAccount, maskSin } from '../utils/dataRedaction';
 import { RequireRole } from '../../auth/components/RequireRole';
 import { KYC_RECORDS, type KycRecord } from '../data/kycMockData';
+import { useDemoMode } from '../../../core/hooks/useDemoMode';
 
 export type { KycRecord };
 
@@ -86,6 +87,9 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp, onSimulateCrash 
   const isTabletOrLarger           = useIsTabletOrLarger();
   const scrollContainerRef         = useRef<HTMLDivElement>(null);
   const dataSource                 = recordsProp ?? KYC_RECORDS;
+  const { isDemoMode } = useDemoMode();
+  const [showSpotlight, setShowSpotlight] = useState(() => typeof window !== 'undefined' ? sessionStorage.getItem('aegis_chaos_spotlight') !== 'true' : true);
+  const handleSimulateCrash = () => { if (isDemoMode) { setShowSpotlight(false); sessionStorage.setItem('aegis_chaos_spotlight', 'true'); } onSimulateCrash?.(); };
 
   const virtualizer = useVirtualizer({
     count:            dataSource.length,
@@ -119,13 +123,34 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp, onSimulateCrash 
           </div>
           {/* Chaos engineering trigger: right-aligned in flow so it pushes content instead of overlapping */}
           {onSimulateCrash && (
-            <button
-              type="button"
-              onClick={onSimulateCrash}
-              className="px-2 py-1 text-xs font-mono text-slate-500 hover:text-slate-300 border border-slate-700/50 bg-transparent rounded focus:outline-none focus:ring-1 focus:ring-slate-500/50 transition-colors shrink-0"
-            >
-              [ Simulate Network Drop ]
-            </button>
+            <div className="relative flex items-center">
+              <button
+                type="button"
+                onClick={handleSimulateCrash}
+                className="px-2 py-1 text-xs font-mono text-slate-500 hover:text-slate-300 border border-slate-700/50 bg-transparent rounded focus:outline-none focus:ring-1 focus:ring-slate-500/50 transition-colors shrink-0"
+              >
+                [ Simulate Network Drop ]
+              </button>
+              {isDemoMode && showSpotlight && (
+                <div className="absolute right-0 top-full mt-3 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
+                  {/* Caret pointing up */}
+                  <div className="absolute -top-1.5 right-6 w-3 h-3 bg-slate-900 border-t border-l border-slate-700 transform rotate-45" />
+                  <div className="flex items-start gap-3 relative z-10">
+                    <span className="text-lg leading-none mt-0.5">⛈️</span>
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-sm font-semibold text-white leading-none">Chaos Engine</p>
+                      <p className="text-xs text-slate-300 leading-snug">Click to simulate a total server crash and watch the system gracefully survive.</p>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowSpotlight(false); sessionStorage.setItem('aegis_chaos_spotlight', 'true'); }}
+                        className="mt-1 text-[10px] text-teal-400 hover:text-teal-300 self-end font-medium uppercase tracking-wider transition-colors"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
