@@ -134,7 +134,7 @@ export const DashboardLayout = () => {
       />
 
       {showAodaToast && isDemoMode && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-start gap-3 p-4 bg-slate-900 border border-slate-700 rounded-lg shadow-xl dark:bg-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-500">
+        <div className="fixed bottom-6 left-6 md:left-56 z-50 flex items-start gap-3 p-4 bg-slate-900 border border-slate-700 rounded-lg shadow-xl dark:bg-slate-800 animate-in slide-in-from-bottom-5 slide-in-from-left-5 fade-in duration-500">
           <Keyboard className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
           <div className="flex flex-col gap-1 max-w-xs">
             <p className="text-sm font-semibold text-white">Accessibility (AODA) Ready</p>
