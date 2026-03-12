@@ -104,7 +104,7 @@ export const AuditDrawer = ({ isOpen, onClose, transactionId, sinNumber }: Audit
                   isXRayMode ? 'text-emerald-500' : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
-                [ 👁️ Developer / Audit Mode: {isXRayMode ? 'ON' : 'OFF'} ]
+                [ 👁️Audit Mode: {isXRayMode ? 'ON' : 'OFF'} ]
               </button>
             </div>
             <button
