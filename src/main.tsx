@@ -7,8 +7,14 @@ import App from './App.tsx'
 
 // [PRE-BOOT SNIFFER] 
 // Intercept '?mode=demo' before React Router mounts and immediately sync to physical memory.
-if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mode') === 'demo') {
-  sessionStorage.setItem('aegis_demo_mode', 'true');
+if (typeof window !== 'undefined') {
+  const url = window.location.href;
+  if (url.includes('mode=demo')) {
+    localStorage.setItem('aegis_demo_mode', 'true');
+  } else if (url.includes('mode=exit')) {
+    localStorage.removeItem('aegis_demo_mode');
+    localStorage.removeItem('aegis_chaos_spotlight');
+  }
 }
 
 // Initialize Server-State Management Engine

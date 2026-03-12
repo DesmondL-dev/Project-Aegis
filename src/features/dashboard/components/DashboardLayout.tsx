@@ -65,15 +65,17 @@ export const DashboardLayout = () => {
           {/* Dead Man's Switch trigger — intentionally low-contrast to remain invisible
               during normal operation; surfaces only to a trained eye during live demos.
               Bypasses the IDLE_MS wall clock via forceTimeout escape hatch. */}
-          <DemoBeacon message="⏩ Test 5-Min Meltdown 👉" />
-          <button
-            type="button"
-            onClick={forceTimeout}
-            onMouseEnter={() => !isDemoMode && useAodaTelemetry.getState().announce('Navigation focused. Screen reader active.')}
-            className="text-[10px] font-mono tracking-wider text-slate-500 hover:text-slate-300 transition-colors focus:outline-none"
-          >
-            [ Fast-Forward Teardown ]
-          </button>
+          <div className="hidden sm:flex items-center gap-2">
+            <DemoBeacon message="⏩ Test 5-Min Meltdown 👉" />
+            <button
+              type="button"
+              onClick={forceTimeout}
+              onMouseEnter={() => !isDemoMode && useAodaTelemetry.getState().announce('Navigation focused. Screen reader active.')}
+              className="text-[10px] font-mono tracking-wider text-slate-500 hover:text-slate-300 transition-colors focus:outline-none"
+            >
+              [ Fast-Forward Teardown ]
+            </button>
+          </div>
 
           {/* User identity payload display */}
           {user && (
@@ -95,7 +97,7 @@ export const DashboardLayout = () => {
 
       <div className="flex flex-1 min-h-0">
         {/* Sidebar — nav slot above; telemetry HUD anchored at bottom */}
-        <aside className="flex flex-col w-48 shrink-0 border-r border-border bg-surface/50 py-4">
+        <aside className="hidden md:flex flex-col w-48 shrink-0 border-r border-border bg-surface/50 py-4">
           <div className="flex-1 min-h-0" aria-hidden />
           {/* AODA telemetry block in document flow above Pedigree Seal — no overlap, natural stack */}
           <AodaTelemetryHUD />
@@ -134,7 +136,7 @@ export const DashboardLayout = () => {
       />
 
       {showAodaToast && isDemoMode && (
-        <div className="fixed bottom-6 left-6 md:left-56 z-50 flex items-start gap-3 p-4 bg-slate-900 border border-slate-700 rounded-lg shadow-xl dark:bg-slate-800 animate-in slide-in-from-bottom-5 slide-in-from-left-5 fade-in duration-500">
+        <div className="fixed bottom-6 left-6 md:left-56 z-40 flex items-start gap-3 p-4 bg-slate-900 border border-slate-700 rounded-lg shadow-xl dark:bg-slate-800 animate-in slide-in-from-bottom-5 slide-in-from-left-5 fade-in duration-500">
           <Keyboard className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
           <div className="flex flex-col gap-1 max-w-xs">
             <p className="text-sm font-semibold text-white">Accessibility (AODA) Ready</p>
