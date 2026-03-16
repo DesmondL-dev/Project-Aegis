@@ -19,15 +19,13 @@ const escapeHtml = (raw: string): string =>
 export const auditSchema = z.object({
   notes: z
     .string()
-
     .min(10, { message: 'Audit justification must contain at least 10 characters for compliance logging.' })
     .max(1000, { message: 'Audit notes must not exceed 1000 characters.' })
-
-    .regex(/^(?!.*<script\b[^>]*>).*$/i, { message: '[OWASP A03_ALERT] Active script injection payload detected and blocked by Zero-Trust Gateway.' })
-
+    // Explain the WHY: Removed flawed regex blocklist. In modern OWASP standards, 
+    // blacklisting is an anti-pattern. We rely entirely on absolute output encoding 
+    // (entity escape transform) to neutralize all execution vectors including nested scripts.
     .transform((val) => escapeHtml(val.trim())),
 });
 
-// Output type reflects the post-transform shape — `notes` is guaranteed
-// to be a sanitized, HTML-escaped string at this point in the pipeline.
+// Output type reflects the post-transform shape — `notes` will be a sanitized string.
 export type AuditPayload = z.infer<typeof auditSchema>;
