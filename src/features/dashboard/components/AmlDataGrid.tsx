@@ -98,7 +98,6 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp, onSimulateCrash 
     overscan:         5,
   });
 
-  
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
       {/* Grid header — enforced flex-wrap container to prevent UI collision between records/SIN and Simulate button */}
@@ -207,74 +206,76 @@ export const AmlDataGrid = ({ onRowClick, records: recordsProp, onSimulateCrash 
                 }}
                 className={`transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-inset focus:z-10 ${isLockedOut ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-900/50 grayscale' : 'cursor-pointer hover:bg-surface-elevated active:scale-[0.98]'}`}
               >
-                {/* ── Desktop (md+): high-density tabular row ── */}
-                <div className="hidden md:grid md:grid-cols-[1fr_2fr_1.5fr_1fr_1fr_1fr] gap-3 items-center px-4 py-3 text-sm border-b border-border hover:bg-surface-elevated">
-                  <span className="font-mono text-xs text-text-muted">{maskAccount(record.id, role)}{isFrozen && <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-slate-500 bg-slate-200 dark:bg-slate-800 dark:text-slate-400 rounded-sm">[ FROZEN ]</span>}</span>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-text-primary truncate text-xs font-medium">{record.customerName}</span>
-                    <span className="text-text-muted truncate text-xs">{record.email}</span>
-                  </div>
-                  <span className="font-mono text-xs text-text-muted">
-                    {maskSin(record.sinNumber, role ?? 'ANALYST', !isRedacted)}
-                  </span>
-                  <span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_BADGE[record.status]}`}>
-                      {record.status}
-                    </span>
-                  </span>
-                  <span className={`text-xs ${RISK_BAND(record.riskScore)}`}>{record.riskScore}</span>
-                  <span className="text-right text-text-primary tabular-nums text-xs">
-                    ${record.amount.toLocaleString('en-CA')}
-                  </span>
-                </div>
-
-                {/* ── Mobile: self-contained Data Card ──
-                    flex-col with gap-3 guarantees each field occupies its own
-                    horizontal lane — eliminates squishing and overlap entirely.
-                    flex justify-between on each row aligns label left / value right. */}
-                <div className="md:hidden mx-3 my-2 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface hover:bg-surface-elevated shadow-sm">
-                  {/* Card header — name + status badge */}
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                      <p className="text-sm font-semibold text-text-primary">{record.customerName}</p>
-                      <p className="text-xs text-text-muted mt-0.5">{record.email}</p>
+                {/* JS-level conditional rendering based on isTabletOrLarger state. 
+                    This ensures ONLY the active layout is mounted into the DOM, preventing 
+                    TanStack Virtual from measuring hidden elements and avoiding 2x DOM bloat. */}
+                {isTabletOrLarger ? (
+                  /* ── Desktop: high-density tabular row ── */
+                  <div className="grid grid-cols-[1fr_2fr_1.5fr_1fr_1fr_1fr] gap-3 items-center px-4 py-3 text-sm border-b border-border hover:bg-surface-elevated">
+                    <span className="font-mono text-xs text-text-muted">{maskAccount(record.id, role)}{isFrozen && <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-slate-500 bg-slate-200 dark:bg-slate-800 dark:text-slate-400 rounded-sm">[ FROZEN ]</span>}</span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-text-primary truncate text-xs font-medium">{record.customerName}</span>
+                      <span className="text-text-muted truncate text-xs">{record.email}</span>
                     </div>
-                    <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_BADGE[record.status]}`}>
-                      {record.status}
+                    <span className="font-mono text-xs text-text-muted">
+                      {maskSin(record.sinNumber, role ?? 'ANALYST', !isRedacted)}
+                    </span>
+                    <span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_BADGE[record.status]}`}>
+                        {record.status}
+                      </span>
+                    </span>
+                    <span className={`text-xs ${RISK_BAND(record.riskScore)}`}>{record.riskScore}</span>
+                    <span className="text-right text-text-primary tabular-nums text-xs">
+                      ${record.amount.toLocaleString('en-CA')}
                     </span>
                   </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-slate-100 dark:border-slate-800 mb-3" />
-
-                  {/* Key-value rows — flex justify-between for clean left/right alignment */}
-                  <div className="flex flex-col gap-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Record ID</span>
-                      <span className="font-mono text-xs text-text-primary">{maskAccount(record.id, role)}{isFrozen && <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-slate-500 bg-slate-200 dark:bg-slate-800 dark:text-slate-400 rounded-sm">[ FROZEN ]</span>}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-medium text-text-muted uppercase tracking-wide">SIN</span>
-                      <span className="font-mono text-xs text-text-muted">
-                        {maskSin(record.sinNumber, role ?? 'ANALYST', !isRedacted)}
+                ) : (
+                  /* ── Mobile: self-contained Data Card ── */
+                  <div className="mx-3 my-2 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-surface hover:bg-surface-elevated shadow-sm">
+                    {/* Card header — name + status badge */}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-text-primary">{record.customerName}</p>
+                        <p className="text-xs text-text-muted mt-0.5">{record.email}</p>
+                      </div>
+                      <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_BADGE[record.status]}`}>
+                        {record.status}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Risk Score</span>
-                      <span className={`text-xs font-medium ${RISK_BAND(record.riskScore)}`}>{record.riskScore}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Amount (CAD)</span>
-                      <span className="text-sm font-semibold text-text-primary tabular-nums">
-                        ${record.amount.toLocaleString('en-CA')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Date</span>
-                      <span className="text-xs text-text-primary">{record.date}</span>
+
+                    {/* Divider */}
+                    <div className="border-t border-slate-100 dark:border-slate-800 mb-3" />
+
+                    {/* Key-value rows — flex justify-between for clean left/right alignment */}
+                    <div className="flex flex-col gap-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Record ID</span>
+                        <span className="font-mono text-xs text-text-primary">{maskAccount(record.id, role)}{isFrozen && <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-slate-500 bg-slate-200 dark:bg-slate-800 dark:text-slate-400 rounded-sm">[ FROZEN ]</span>}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-text-muted uppercase tracking-wide">SIN</span>
+                        <span className="font-mono text-xs text-text-muted">
+                          {maskSin(record.sinNumber, role ?? 'ANALYST', !isRedacted)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Risk Score</span>
+                        <span className={`text-xs font-medium ${RISK_BAND(record.riskScore)}`}>{record.riskScore}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Amount (CAD)</span>
+                        <span className="text-sm font-semibold text-text-primary tabular-nums">
+                          ${record.amount.toLocaleString('en-CA')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Date</span>
+                        <span className="text-xs text-text-primary">{record.date}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             );
           })}
